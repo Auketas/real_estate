@@ -82,7 +82,7 @@ scrape_listings <- function(){
     }else{
       nzeros <- 0
     }
-    links <- results$link
+    links <- paste0("https://www.imovirtual.com",results$link)
     descriptions <- results$description
     prices <- results$price
     ids <- results$id
@@ -120,7 +120,10 @@ scrape_listings <- function(){
     
     Sys.sleep(1.5)  # be polite
   }
-  return(data.frame(id=all_ids,link=all_links,description=all_descriptions,price=all_prices))
+  result <- data.frame(id=all_ids,link=all_links,description=all_descriptions,price=all_prices)
+  result <- result[substr(result$price,nchar(result$price),nchar(result$price))=="€",]
+  result$price <- as.numeric(gsub("[^0-9]", "", result$price))
+  return(result)
 }
 
 scrape_ad <- function(url){
@@ -135,14 +138,22 @@ scrape_ad <- function(url){
     html_text(trim = TRUE)
   
   area <- features[which(features=="Área:")+1]
+  area <- ifelse(length(area)==0,NA,ifelse(substr(area,nchar(area),nchar(area))==":",NA,area))
   tipologia <- features[which(features=="Tipologia:")+1]
+  tipologia <- ifelse(length(tipologia)==0,NA,ifelse(substr(tipologia,nchar(tipologia),nchar(tipologia))==":",NA,tipologia))
   andar <- features[which(features=="Andar:")+1]
+  andar <- ifelse(length(andar)==0,NA,ifelse(substr(andar,nchar(andar),nchar(andar))==":",NA,andar))
   anunciante <- features[which(features=="Tipo de anunciante:")+1]
+  anunciante <- ifelse(length(anunciante)==0,NA,ifelse(substr(anunciante,nchar(anunciante),nchar(anunciante))==":",NA,anunciante))
   tipo <- features[which(features=="Tipo de imóvel:")+1]
+  tipo <- ifelse(length(tipo)==0,NA,ifelse(substr(tipo,nchar(tipo),nchar(tipo))==":",NA,tipo))
   novo  <- features[which(features=="Nova construção:")+1]
+  novo <- ifelse(length(novo)==0,NA,ifelse(substr(novo,nchar(novo),nchar(novo))==":",NA,novo))
   jardim <- ifelse(any(grepl("jardim", features)), 1, 0)
   energia <- features[which(features=="Certificado energético:")+1]
+  energia <- ifelse(length(energia)==0,NA,ifelse(substr(energia,nchar(energia),nchar(energia))==":",NA,energia))
   elevador <- features[which(features=="Elevador:")+1]
+  elevador <- ifelse(length(elevador)==0,NA,ifelse(substr(elevador,nchar(elevador),nchar(elevador))==":",NA,elevador))
   garagem <- ifelse(any(grepl("garagem", features)), 1, 0)
   terraco <- ifelse(any(grepl("terraço", features)), 1, 0)
   varanda <- ifelse(any(grepl("varanda", features)), 1, 0)
@@ -163,52 +174,95 @@ scrape_ad <- function(url){
   return(c(id,area,tipologia,andar,anunciante,tipo,novo,jardim,energia,elevador,garagem,terraco,varanda,lat,lon,neighbourhood))
 }
 
-update_database <- function(db){
+update_database <- function() {
+  
+  url <- Sys.getenv("TURSO_URL")
+  token <- Sys.getenv("TURSO_TOKEN")
   today <- Sys.Date()
   
-  # 1. scrape listing pages
+  # 1. scrape
   current_ads <- scrape_listings()
   
-  # 2. load db
-  db_ads <- read_db(db)
-  pricetable <- read_db(pricedb)
+  # 2. read DB
+  db_ads <- read_ads(url, token)
+  price_table <- read_prices(url, token)
   
-  # --- NEW ---
-  new_ids <- setdiff(current_ads$id, db_ads$ad_id)
+  # Convert to dataframes
+  db_ads <- as.data.frame(db_ads)
+  price_table <- as.data.frame(price_table)
   
-  # --- EXISTING ---
-  existing_ids <- intersect(current_ads$id, db_ads$ad_id)
-  
-  # --- INACTIVE ---
+  # 3. ID logic
+  new_ids <- setdiff(current_ads$id, db_ads$id)
+  existing_ids <- intersect(current_ads$id, db_ads$id)
   inactive_ids <- setdiff(
-    db_ads$ad_id[db_ads$is_active == TRUE],
+    db_ads$id[db_ads$is_active == "Yes"],
     current_ads$id
   )
   
-  #Add new listings
-  new_listings <- current_ads[current_ads$id %in%  new_ids,]
-  new_data <- scrape_new_ads(new_listings,today)
-  db_ads <- rbind(db_ads,new_data)
+  # 4. NEW ADS
+  new_listings <- current_ads[current_ads$id %in% new_ids, ]
+  new_data <- scrape_new_ads(new_listings, today)
   
-  #Update active existing listings
-  db_ads$last_seen[db_ads$ad_id %in% existing_ids] <- today
-  for(id in existing_ids){
-    dbprice <- db_ads$price[db_ads$ad_id==id]
-    currentprice <- current_ads$price[current_price$id==id]
-    if(dbprice!=currentprice){
-      pricetable <- update_price_table(id,dbprice,currentprice,today,pricetable)
-      db_ads$price[db_ads$ad_id==id] <- currentprice
+  insert_ads(new_data, url, token)
+  
+  # 5. UPDATE EXISTING
+  for(id in existing_ids) {
+    
+    dbprice <- db_ads$price[db_ads$id == id]
+    currentprice <- current_ads$price[current_ads$id == id]
+    
+    # update last_seen
+    sql_update_seen <- sprintf(
+      "UPDATE ads SET last_seen = '%s' WHERE id = '%s';",
+      today, id
+    )
+    turso_query(sql_update_seen, url, token)
+    
+    # price change
+    if(length(currentprice) > 0 && dbprice != currentprice) {
+      
+      sql_price <- sprintf(
+        "INSERT INTO price_changes (id, old_price, new_price, date)
+         VALUES ('%s', %f, %f, '%s');",
+        id, dbprice, currentprice, today
+      )
+      
+      turso_query(sql_price, url, token)
+      
+      sql_update_price <- sprintf(
+        "UPDATE ads SET price = %f WHERE id = '%s';",
+        currentprice, id
+      )
+      
+      turso_query(sql_update_price, url, token)
     }
   }
   
-  #Update inactive existing listings
-  db_ads$is_active[db_ads$ad_id %in% inactive_ids]  <- "No"
+  # 6. INACTIVE ADS
+  for(id in inactive_ids) {
+    sql_inactive <- sprintf(
+      "UPDATE ads SET is_active = 'No' WHERE id = '%s';",
+      id
+    )
+    turso_query(sql_inactive, url, token)
+  }
 }
 
 scrape_new_ads <- function(new_listings,date){
   newdata <- matrix(nrow=nrow(new_listings),ncol=16)
   for(i in 1:nrow(new_listings)){
-    newdata[i,] <- scrape_ad(new_listings$link[i])
+    print(i)
+    Sys.sleep(2)
+    
+    result <- tryCatch(
+      scrape_ad(new_listings$link[i]),
+      error = function(e) {
+        message(paste("Error at row", i, ":", e$message))
+        return(rep(NA, 16))  
+      }
+    )
+    
+    newdata[i,] <- result
   }
   newdata <- data.frame(newdata)
   colnames(newdata) <- c("id","area","tipologia","andar","anunciante","tipo","novo","jardim","energia","elevador","garagem","terraco","varanda","lat","lon","neighbourhood")
@@ -216,6 +270,7 @@ scrape_new_ads <- function(new_listings,date){
   newdata$is_active <- "Yes"
   newdata$first_seen <- date
   newdata$last_seen <- date
+  newdata <- newdata[!is.na(newdata[,1]),]
   return(newdata)
 }
 
@@ -247,4 +302,70 @@ convert_coordinates_to_neighbourhood <- function(lon,lat){
     ) %>%
     pull(neighbourhood)
   return(neighbourhood)
+}
+
+turso_query <- function(sql, url, token) {
+  res <- POST(
+    url = paste0(url, "/v2/pipeline"),
+    add_headers(Authorization = paste("Bearer", token)),
+    body = toJSON(list(
+      requests = list(list(type = "execute", stmt = list(sql = sql)))
+    ), auto_unbox = TRUE),
+    encode = "json"
+  )
+  
+  content(res, as = "parsed", simplifyVector = TRUE)
+}
+
+read_ads <- function(url, token) {
+  res <- turso_query("SELECT * FROM ads;", url, token)
+  res$results$response$result$rows
+}
+
+read_prices <- function(url, token) {
+  res <- turso_query("SELECT * FROM price_changes;", url, token)
+  res$results$response$result$rows
+}
+
+insert_ads <- function(df, url, token) {
+  for(i in 1:nrow(df)) {
+    print(i)
+    row <- df[i, ]
+    
+    sql <- sprintf(
+      paste0(
+        "INSERT INTO ads (
+          id, area, tipologia, andar, anunciante, tipo, novo,
+          jardim, energia, elevador, garagem, terraco, varanda,
+          lat, lon, neighbourhood, price, is_active, first_seen, last_seen
+        ) VALUES (
+          '%s','%s','%s','%s','%s','%s','%s',
+          %d,'%s','%s',%d,%d,%d,
+          %f,%f,'%s',%f,'%s','%s','%s'
+        );"
+      ),
+      row$id,
+      row$area,
+      row$tipologia,
+      row$andar,
+      row$anunciante,
+      row$tipo,
+      row$novo,
+      as.numeric(row$jardim),
+      row$energia,
+      row$elevador,
+      as.numeric(row$garagem),
+      as.numeric(row$terraco),
+      as.numeric(row$varanda),
+      as.numeric(row$lat),
+      as.numeric(row$lon),
+      row$neighbourhood,
+      row$price,
+      row$is_active,
+      row$first_seen,
+      row$last_seen
+    )
+    
+    turso_query(sql, url, token)
+  }
 }
