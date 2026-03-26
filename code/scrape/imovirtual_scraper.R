@@ -167,6 +167,9 @@ scrape_ad <- function(url){
   lon <- data$props$pageProps$ad$location$coordinates$longitude
   
   id <- data$props$pageProps$id
+  if(substr(id,1,2)=="ID"){
+    id <- substr(id,3,nchar(id))
+  }
   
   neighbourhood <- convert_coordinates_to_neighbourhood(lon,lat)
   
@@ -188,7 +191,20 @@ update_database <- function() {
   price_table <- read_prices(url, token)
   
   # Convert to dataframes
-  db_ads <- as.data.frame(db_ads)
+  parse_turso_rows <- function(rows, col_names) {
+    df_list <- lapply(rows, function(row) {
+      values <- sapply(row, function(cell) cell$value)
+      
+      # IMPORTANT: transpose to make it a single row
+      as.data.frame(t(values), stringsAsFactors = FALSE)
+    })
+    
+    df <- do.call(rbind, df_list)
+    colnames(df) <- col_names
+    
+    return(df)
+  }
+  db_ads <- parse_turso_rows(db_ads,c("id","price"))
   price_table <- as.data.frame(price_table)
   
   # 3. ID logic
@@ -318,7 +334,7 @@ turso_query <- function(sql, url, token) {
 }
 
 read_ads <- function(url, token) {
-  res <- turso_query("SELECT * FROM ads;", url, token)
+  res <- turso_query("SELECT id,price FROM ads;", url, token)
   res$results$response$result$rows
 }
 
