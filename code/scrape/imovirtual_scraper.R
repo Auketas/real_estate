@@ -86,6 +86,7 @@ scrape_listings <- function(){
     descriptions <- results$description
     prices <- results$price
     ids <- results$id
+    ids <- ifelse(substr(ids,1,2)=="ID",substr(ids,3,nchar(ids)),ids)
     assert_that(length(links)==length(descriptions),msg=paste0("Different number of links and descriptions on page ",page))
     assert_that(length(links)==length(prices),msg=paste0("Different number of links and prices on page ",page))
     assert_that(length(links)==length(ids),msg=paste0("Different number of links and ids on page ",page))
@@ -121,6 +122,7 @@ scrape_listings <- function(){
     Sys.sleep(1.5)  # be polite
   }
   result <- data.frame(id=all_ids,link=all_links,description=all_descriptions,price=all_prices)
+  result <- result[!duplicated(result$id),]
   result <- result[substr(result$price,nchar(result$price),nchar(result$price))=="€",]
   result$price <- as.numeric(gsub("[^0-9]", "", result$price))
   return(result)
@@ -205,7 +207,7 @@ update_database <- function() {
     return(df)
   }
   db_ads <- parse_turso_rows(db_ads,c("id","price"))
-  price_table <- as.data.frame(price_table)
+  price_table <- parse_turso_rows(price_table,c("id","old_price","new_price","date"))
   
   # 3. ID logic
   new_ids <- setdiff(current_ads$id, db_ads$id)
@@ -240,7 +242,7 @@ update_database <- function() {
       sql_price <- sprintf(
         "INSERT INTO price_changes (id, old_price, new_price, date)
          VALUES ('%s', %f, %f, '%s');",
-        id, dbprice, currentprice, today
+        id, as.numeric(dbprice), currentprice, today
       )
       
       turso_query(sql_price, url, token)
