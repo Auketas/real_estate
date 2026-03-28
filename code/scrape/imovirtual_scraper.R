@@ -181,9 +181,12 @@ scrape_ad <- function(url){
 
 update_database <- function() {
   
-  url <- Sys.getenv("TURSO_URL")
-  token <- Sys.getenv("TURSO_TOKEN")
+  #url <- Sys.getenv("TURSO_URL")
+  #token <- Sys.getenv("TURSO_TOKEN")
+  url <- "https://real-estate-db-auke-tas.aws-eu-west-1.turso.io"
+  token <- "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQzNjgyMzgsImlkIjoiMDE5ZDFiMDItYTcwMS03MWYxLWEyYjItZDZmY2MzOGYxZTE0IiwicmlkIjoiMWYxN2ZhYmQtNjUxMS00NjE3LWEzNGQtNjQwN2MyMDE4YTNmIn0.jQkSe0iSZ8U3TraGKHgpC4O0ksxbniIT6ZC7y23ak0wIjZpG4RJhw7Il4Ct6VXPv0095w4ZXpnboLSj9h6rsCg"
   today <- Sys.Date()
+  price_changes <- 0
   
   # 1. scrape
   current_ads <- scrape_listings()
@@ -253,6 +256,8 @@ update_database <- function() {
       )
       
       turso_query(sql_update_price, url, token)
+      
+      price_changes <- price_changes+1
     }
   }
   
@@ -264,6 +269,12 @@ update_database <- function() {
     )
     turso_query(sql_inactive, url, token)
   }
+  new_log_data <- c(today,length(new_ids),length(existing_ids),length(inactive_ids),price_changes)
+  old_log_data <- read.csv("log/scraper_log.csv")
+  new_log_data <- data.frame(t(new_log_data))
+  colnames(new_log_data) <- colnames(old_log_data)
+  old_log_data <- rbind(old_log_data,new_log_data)
+  write.csv(old_log_data,"log/scraper_log.csv")
 }
 
 scrape_new_ads <- function(new_listings,date){
