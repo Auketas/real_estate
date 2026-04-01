@@ -181,10 +181,8 @@ scrape_ad <- function(url){
 
 update_database <- function() {
   
-  #url <- Sys.getenv("TURSO_URL")
-  #token <- Sys.getenv("TURSO_TOKEN")
-  url <- "https://real-estate-db-auke-tas.aws-eu-west-1.turso.io"
-  token <- "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzQzNjgyMzgsImlkIjoiMDE5ZDFiMDItYTcwMS03MWYxLWEyYjItZDZmY2MzOGYxZTE0IiwicmlkIjoiMWYxN2ZhYmQtNjUxMS00NjE3LWEzNGQtNjQwN2MyMDE4YTNmIn0.jQkSe0iSZ8U3TraGKHgpC4O0ksxbniIT6ZC7y23ak0wIjZpG4RJhw7Il4Ct6VXPv0095w4ZXpnboLSj9h6rsCg"
+  url <- Sys.getenv("TURSO_URL")
+  token <- Sys.getenv("TURSO_TOKEN")
   today <- Sys.Date()
   price_changes <- 0
   
