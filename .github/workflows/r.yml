@@ -1,5 +1,9 @@
 name: run_imovirtual_scraper
 
+env:
+    TURSO_URL: ${{ secrets.TURSO_URL }}
+    TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+
 on:
   schedule:
     - cron: "0 6 * * *"   # runs every day at 06:00 UTC
