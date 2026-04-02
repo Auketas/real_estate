@@ -274,6 +274,7 @@ update_database <- function() {
   }
   print("inactive ads updated")
   new_log_data <- c(today,length(new_ids),length(existing_ids),length(inactive_ids),price_changes)
+  print(cat0("new log data:",new_log_data))
   old_log_data <- read.csv("log/scraper_log.csv")
   new_log_data <- data.frame(t(new_log_data))
   colnames(new_log_data) <- colnames(old_log_data)
