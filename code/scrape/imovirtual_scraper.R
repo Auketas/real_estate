@@ -188,10 +188,11 @@ update_database <- function() {
   
   # 1. scrape
   current_ads <- scrape_listings()
-  
+  print("current ads scraped")
   # 2. read DB
   db_ads <- read_ads(url, token)
   price_table <- read_prices(url, token)
+  print("databases read")
   
   # Convert to dataframes
   parse_turso_rows <- function(rows, col_names) {
@@ -209,7 +210,7 @@ update_database <- function() {
   }
   db_ads <- parse_turso_rows(db_ads,c("id","price"))
   price_table <- parse_turso_rows(price_table,c("id","old_price","new_price","date"))
-  
+  print("databases converted to dataframes")
   # 3. ID logic
   new_ids <- setdiff(current_ads$id, db_ads$id)
   existing_ids <- intersect(current_ads$id, db_ads$id)
@@ -217,12 +218,14 @@ update_database <- function() {
     db_ads$id[db_ads$is_active == "Yes"],
     current_ads$id
   )
+  print("ids extracted")
   
   # 4. NEW ADS
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
   new_data <- scrape_new_ads(new_listings, today)
   
   insert_ads(new_data, url, token)
+  print("new ads inserted into database")
   
   # 5. UPDATE EXISTING
   for(id in existing_ids) {
@@ -258,7 +261,7 @@ update_database <- function() {
       price_changes <- price_changes+1
     }
   }
-  
+  print("existing ads updated")
   # 6. INACTIVE ADS
   for(id in inactive_ids) {
     sql_inactive <- sprintf(
@@ -267,12 +270,14 @@ update_database <- function() {
     )
     turso_query(sql_inactive, url, token)
   }
+  print("inactive ads updated")
   new_log_data <- c(today,length(new_ids),length(existing_ids),length(inactive_ids),price_changes)
   old_log_data <- read.csv("log/scraper_log.csv")
   new_log_data <- data.frame(t(new_log_data))
   colnames(new_log_data) <- colnames(old_log_data)
   old_log_data <- rbind(old_log_data,new_log_data)
   write.csv(old_log_data,"log/scraper_log.csv")
+  print("log data written")
 }
 
 scrape_new_ads <- function(new_listings,date){
