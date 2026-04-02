@@ -183,6 +183,8 @@ update_database <- function() {
   
   url <- Sys.getenv("TURSO_URL")
   token <- Sys.getenv("TURSO_TOKEN")
+  print(url)
+  print(token)
   today <- Sys.Date()
   price_changes <- 0
   
