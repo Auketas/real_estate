@@ -273,11 +273,9 @@ update_database <- function() {
     turso_query(sql_inactive, url, token)
   }
   print("inactive ads updated")
-  new_log_data <- c(today,length(new_ids),length(existing_ids),length(inactive_ids),price_changes)
-  print(paste0("new log data:",new_log_data))
+  new_log_data <- list(date=today,new_listings=length(new_ids),existing_listings=length(existing_ids),inactive_listings=length(inactive_ids),price_changes=price_changes)
+  print(cat0("new log data:",new_log_data))
   old_log_data <- read.csv("log/scraper_log.csv")
-  new_log_data <- data.frame(t(new_log_data))
-  colnames(new_log_data) <- colnames(old_log_data)
   old_log_data <- rbind(old_log_data,new_log_data)
   write.csv(old_log_data,"log/scraper_log.csv")
   print("log data written")
