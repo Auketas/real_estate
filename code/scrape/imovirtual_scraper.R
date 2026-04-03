@@ -274,7 +274,7 @@ update_database <- function() {
   }
   print("inactive ads updated")
   new_log_data <- list(date=today,new_listings=length(new_ids),existing_listings=length(existing_ids),inactive_listings=length(inactive_ids),price_changes=price_changes)
-  print(cat0("new log data:",new_log_data))
+  print(paste0("new log data:",new_log_data))
   old_log_data <- read.csv("log/scraper_log.csv")
   old_log_data <- rbind(old_log_data,new_log_data)
   write.csv(old_log_data,"log/scraper_log.csv")
