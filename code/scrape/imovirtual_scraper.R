@@ -9,9 +9,9 @@ library(DBI)
 library(RSQLite)
 library(httr2)
 
-get_listing_info <- function(page_num) {
+get_listing_info <- function(page_num,base_url) {
   url <- paste0(
-    "https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=",
+    base_url,
     page_num
   )
   
@@ -62,7 +62,7 @@ get_listing_info <- function(page_num) {
   return(list(results=results,nads=nads))  
 }
 
-scrape_listings <- function(){
+scrape_listings <- function(base_url){
   all_links <- c()
   all_descriptions <- c()
   all_prices <- c()
@@ -74,7 +74,7 @@ scrape_listings <- function(){
   repeat {
     cat("Scraping page", page, "\n")
     
-    pageresults <- get_listing_info(page)
+    pageresults <- get_listing_info(page,base_url)
     results <- pageresults$results
     nads <- pageresults$nads
     if(length(results$link)==0){
@@ -179,7 +179,7 @@ scrape_ad <- function(url){
   return(c(id,area,tipologia,andar,anunciante,tipo,novo,jardim,energia,elevador,garagem,terraco,varanda,lat,lon,neighbourhood))
 }
 
-update_database <- function() {
+update_porto_buy <- function() {
   
   url <- Sys.getenv("TURSO_URL")
   token <- Sys.getenv("TURSO_TOKEN")
@@ -189,7 +189,8 @@ update_database <- function() {
   price_changes <- 0
   
   # 1. scrape
-  current_ads <- scrape_listings()
+  base_url <- "https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page="
+  current_ads <- scrape_listings(base_url)
   print("current ads scraped")
   # 2. read DB
   db_ads <- read_ads(url, token)
@@ -351,12 +352,12 @@ turso_query <- function(sql, url, token) {
 }
 
 read_ads <- function(url, token) {
-  res <- turso_query("SELECT id,price FROM ads;", url, token)
+  res <- turso_query("SELECT id,price FROM ads_porto_buy;", url, token)
   res$results$response$result$rows
 }
 
 read_prices <- function(url, token) {
-  res <- turso_query("SELECT * FROM price_changes;", url, token)
+  res <- turso_query("SELECT * FROM price_changes_porto_buy;", url, token)
   res$results$response$result$rows
 }
 
@@ -401,4 +402,14 @@ insert_ads <- function(df, url, token) {
     
     turso_query(sql, url, token)
   }
+}
+
+update_porto_rent <- function(){
+  base_url <- "https://www.imovirtual.com/pt/resultados/arrendar/apartamento/porto/porto?page="
+  current_ads <- scrape_listings(base_url)
+  print("current ads scraped")
+}
+
+update_database <- function(){
+  update_porto_buy()
 }
