@@ -179,22 +179,23 @@ scrape_ad <- function(url){
   return(c(id,area,tipologia,andar,anunciante,tipo,novo,jardim,energia,elevador,garagem,terraco,varanda,lat,lon,neighbourhood))
 }
 
-update_porto_buy <- function() {
+update_porto <- function(type) {
   
   url <- Sys.getenv("TURSO_URL")
   token <- Sys.getenv("TURSO_TOKEN")
-  print(url)
-  print(token)
   today <- Sys.Date()
   price_changes <- 0
   
+  adsdbname <- ifelse(type=="buy","ads_porto_buy","ads_porto_rent")
+  pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
+  
   # 1. scrape
-  base_url <- "https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page="
+  base_url <- ifelse(type=="buy","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=")
   current_ads <- scrape_listings(base_url)
   print("current ads scraped")
   # 2. read DB
-  db_ads <- read_ads(url, token)
-  price_table <- read_prices(url, token)
+  db_ads <- read_ads(url, token, adsdbname)
+  price_table <- read_prices(url, token, pricedbname)
   print("databases read")
   
   # Convert to dataframes
@@ -227,7 +228,7 @@ update_porto_buy <- function() {
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
   new_data <- scrape_new_ads(new_listings, today)
   
-  insert_ads(new_data, url, token)
+  insert_ads(new_data, url, token, adsdbname)
   print("new ads inserted into database")
   
   # 5. UPDATE EXISTING
@@ -237,8 +238,10 @@ update_porto_buy <- function() {
     currentprice <- current_ads$price[current_ads$id == id]
     
     # update last_seen
-    sql_update_seen <- sprintf(
-      "UPDATE ads SET last_seen = '%s' WHERE id = '%s';",
+    
+    sql_update_seen <- sprintf(paste0(
+      "UPDATE ",adsdbname," SET last_seen = '%s' WHERE id = '%s';")
+      ,
       today, id
     )
     turso_query(sql_update_seen, url, token)
@@ -246,16 +249,18 @@ update_porto_buy <- function() {
     # price change
     if(length(currentprice) > 0 && dbprice != currentprice) {
       
-      sql_price <- sprintf(
-        "INSERT INTO price_changes (id, old_price, new_price, date)
-         VALUES ('%s', %f, %f, '%s');",
+      sql_price <- sprintf(paste0(
+        "INSERT INTO ",pricedbname," (id, old_price, new_price, date)
+         VALUES ('%s', %f, %f, '%s');")
+        ,
         id, as.numeric(dbprice), currentprice, today
       )
       
       turso_query(sql_price, url, token)
       
-      sql_update_price <- sprintf(
-        "UPDATE ads SET price = %f WHERE id = '%s';",
+      sql_update_price <- sprintf(paste0(
+        "UPDATE ",adsdbname," SET price = %f WHERE id = '%s';")
+        ,
         currentprice, id
       )
       
@@ -267,8 +272,9 @@ update_porto_buy <- function() {
   print("existing ads updated")
   # 6. INACTIVE ADS
   for(id in inactive_ids) {
-    sql_inactive <- sprintf(
-      "UPDATE ads SET is_active = 'No' WHERE id = '%s';",
+    sql_inactive <- sprintf(paste0(
+      "UPDATE ",adsdbname," SET is_active = 'No' WHERE id = '%s';")
+      ,
       id
     )
     turso_query(sql_inactive, url, token)
@@ -351,24 +357,24 @@ turso_query <- function(sql, url, token) {
   content(res, as = "parsed", simplifyVector = TRUE)
 }
 
-read_ads <- function(url, token) {
-  res <- turso_query("SELECT id,price FROM ads_porto_buy;", url, token)
+read_ads <- function(url, token, name) {
+  res <- turso_query(paste0("SELECT id,price FROM ",name,";"), url, token)
   res$results$response$result$rows
 }
 
-read_prices <- function(url, token) {
-  res <- turso_query("SELECT * FROM price_changes_porto_buy;", url, token)
+read_prices <- function(url, token, name) {
+  res <- turso_query(paste0("SELECT * FROM ",name,";"), url, token)
   res$results$response$result$rows
 }
 
-insert_ads <- function(df, url, token) {
+insert_ads <- function(df, url, token, name) {
   for(i in 1:nrow(df)) {
     print(i)
     row <- df[i, ]
     
     sql <- sprintf(
       paste0(
-        "INSERT INTO ads (
+        "INSERT INTO ",name," (
           id, area, tipologia, andar, anunciante, tipo, novo,
           jardim, energia, elevador, garagem, terraco, varanda,
           lat, lon, neighbourhood, price, is_active, first_seen, last_seen
@@ -404,12 +410,7 @@ insert_ads <- function(df, url, token) {
   }
 }
 
-update_porto_rent <- function(){
-  base_url <- "https://www.imovirtual.com/pt/resultados/arrendar/apartamento/porto/porto?page="
-  current_ads <- scrape_listings(base_url)
-  print("current ads scraped")
-}
-
 update_database <- function(){
-  update_porto_buy()
+  update_porto("buy")
+  update_porto("rent")
 }
