@@ -187,7 +187,7 @@ update_porto <- function(type) {
   price_changes <- 0
   
   adsdbname <- ifelse(type=="buy","ads_porto_buy","ads_porto_rent")
-  pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
+  #pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
   
   # 1. scrape
   base_url <- ifelse(type=="buy","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=")
@@ -195,7 +195,7 @@ update_porto <- function(type) {
   print("current ads scraped")
   # 2. read DB
   db_ads <- read_ads(url, token, adsdbname)
-  price_table <- read_prices(url, token, pricedbname)
+  #price_table <- read_prices(url, token, pricedbname)
   print("databases read")
   
   # Convert to dataframes
@@ -213,7 +213,7 @@ update_porto <- function(type) {
     return(df)
   }
   db_ads <- parse_turso_rows(db_ads,c("id","price"))
-  price_table <- parse_turso_rows(price_table,c("id","old_price","new_price","date"))
+  #price_table <- parse_turso_rows(price_table,c("id","old_price","new_price","date"))
   print("databases converted to dataframes")
   # 3. ID logic
   new_ids <- setdiff(current_ads$id, db_ads$id)
@@ -411,6 +411,6 @@ insert_ads <- function(df, url, token, name) {
 }
 
 update_database <- function(){
-  update_porto("buy")
   update_porto("rent")
+  update_porto("buy")
 }
