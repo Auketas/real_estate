@@ -291,7 +291,7 @@ update_porto <- function(type) {
 scrape_new_ads <- function(new_listings,date,maxads=4000){
   nads <- min(maxads,nrow(new_listings))
   newdata <- matrix(nrow=nads,ncol=16)
-  for(i in 1:nrow(nads)){
+  for(i in 1:nads){
     print(i)
     Sys.sleep(2)
     
