@@ -323,8 +323,8 @@ update_price_table <- function(id,dbprice,currentprice,today,pricetable){
   return(pricetable)
 }
 
-convert_coordinates_to_neighbourhood <- function(lon,lat){
-  df <- data.frame(lon=lon,lat=lat)
+convert_coordinates_to_neighbourhood <- function(lon, lat) {
+  df <- data.frame(lon = lon, lat = lat)
   result <- reverse_geocode(
     df,
     lat = lat,
@@ -333,15 +333,20 @@ convert_coordinates_to_neighbourhood <- function(lon,lat){
     full_results = TRUE
   )
   
-  # Extract best available "neighbourhood-like" field
+  # Ensure columns exist before coalescing (OSM doesn't always return all fields)
+  expected_cols <- c("neighbourhood", "suburb")
+  for (col in expected_cols) {
+    if (!col %in% names(result)) {
+      result[[col]] <- NA_character_
+    }
+  }
+  
   neighbourhood <- result %>%
     transmute(
-      neighbourhood = coalesce(
-        neighbourhood,
-        suburb
-      )
+      neighbourhood = coalesce(neighbourhood, suburb)
     ) %>%
     pull(neighbourhood)
+  
   return(neighbourhood)
 }
 
