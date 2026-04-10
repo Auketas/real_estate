@@ -288,9 +288,10 @@ update_porto <- function(type) {
   print("log data written")
 }
 
-scrape_new_ads <- function(new_listings,date){
-  newdata <- matrix(nrow=nrow(new_listings),ncol=16)
-  for(i in 1:nrow(new_listings)){
+scrape_new_ads <- function(new_listings,date,maxads=4000){
+  nads <- min(maxads,nrow(new_listings))
+  newdata <- matrix(nrow=nads,ncol=16)
+  for(i in 1:nrow(nads)){
     print(i)
     Sys.sleep(2)
     
