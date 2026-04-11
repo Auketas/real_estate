@@ -196,7 +196,7 @@ update_porto <- function(type) {
   # 2. read DB
   db_ads <- read_ads(url, token, adsdbname)
   #price_table <- read_prices(url, token, pricedbname)
-  print("databases read")
+  print("database read")
   
   # Convert to dataframes
   parse_turso_rows <- function(rows, col_names) {
@@ -284,7 +284,7 @@ update_porto <- function(type) {
   print(paste0("new log data:",new_log_data))
   old_log_data <- read.csv("log/scraper_log.csv")
   old_log_data <- rbind(old_log_data,new_log_data)
-  write.csv(old_log_data,"log/scraper_log.csv")
+  write.csv(old_log_data,"log/scraper_log.csv",row.names=FALSE)
   print("log data written")
 }
 
