@@ -187,7 +187,7 @@ update_porto <- function(type) {
   price_changes <- 0
   
   adsdbname <- ifelse(type=="buy","ads_porto_buy","ads_porto_rent")
-  #pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
+  pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
   
   # 1. scrape
   base_url <- ifelse(type=="buy","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=")
