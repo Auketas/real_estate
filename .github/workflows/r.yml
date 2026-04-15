@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          Rscript -e 'install.packages(c("httr","rvest","assertthat","jsonlite","stringr","dplyr","tidygeocoder","DBI","RSQLite","httr2"), repos="https://cloud.r-project.org")'
+          Rscript -e 'install.packages(c("RPostgres","httr","rvest","assertthat","jsonlite","stringr","dplyr","tidygeocoder","DBI","RSQLite","httr2"), repos="https://cloud.r-project.org")'
 
       - name: Run R script
         run: |
