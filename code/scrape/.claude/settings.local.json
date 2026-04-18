@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://casa.sapo.pt/comprar/apartamentos/porto/?page=1\")",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' -H 'Accept-Language: pt-PT,pt;q=0.9,en;q=0.8' -H 'Accept-Encoding: identity' -H 'Connection: keep-alive' -H 'Upgrade-Insecure-Requests: 1' 'https://casa.sapo.pt/comprar/apartamentos/porto/?page=1')",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' -H 'Accept-Language: pt-PT,pt;q=0.9,en;q=0.8' -H 'Accept-Encoding: identity' -H 'Connection: keep-alive' 'https://casa.sapo.pt/comprar/apartamentos/porto/?page=1')",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: pt-PT,pt;q=0.9,en;q=0.8' -H 'Accept-Encoding: identity' 'https://casa.sapo.pt/comprar/apartamentos/porto/?page=1')",
+      "Bash(curl -s -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: pt-PT,pt;q=0.9,en;q=0.8' -H 'Accept-Encoding: identity' https://casa.sapo.pt/comprar-apartamento-t2-porto-lordelo-do-ouro-e-massarelos-1982fb73-1655-11f1-a736-060000000058.html)",
+      "Bash(Rscript -e \"source\\('casasapo_scraper.R'\\); test_sapo_single_page\\(\\)\")",
+      "Bash(where Rscript)",
+      "Read(//c/Program Files/R/**)",
+      "Bash(/c/Program Files/R/R-4.3.1/bin/Rscript.exe *)",
+      "Bash(\"/c/Program Files/R/R-4.3.1/bin/Rscript.exe\" \"C:/Users/Auke/real_estate/code/scrape/casasapo_scraper.R\")",
+      "Bash(echo \"Exit: $?\")"
+    ]
+  }
+}

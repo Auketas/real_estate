@@ -8,6 +8,33 @@ library(tidygeocoder)
 library(DBI)
 library(RSQLite)
 library(httr2)
+library(RPostgres)
+
+get_con <- function() {
+  dbConnect(
+    RPostgres::Postgres(),
+    dbname = Sys.getenv("NEON_DBNAME"),
+    host = Sys.getenv("NEON_HOST"),
+    user = Sys.getenv("NEON_USER"),
+    password = Sys.getenv("NEON_PASSWORD"),
+    #dbname=dbname,
+    #host=host,
+    #user=user,
+    #password=password,
+    port = 5432,
+    sslmode = "require"
+  )
+}
+
+safe_con <- function(con) {
+  tryCatch({
+    dbExecute(con, "SELECT 1")
+    return(con)
+  }, error = function(e) {
+    message("Connection lost, reconnecting...")
+    return(get_con())
+  })
+}
 
 get_listing_info <- function(page_num,base_url) {
   url <- paste0(
@@ -179,116 +206,111 @@ scrape_ad <- function(url){
   return(c(id,area,tipologia,andar,anunciante,tipo,novo,jardim,energia,elevador,garagem,terraco,varanda,lat,lon,neighbourhood))
 }
 
-update_porto <- function(type) {
+update <- function(type, city,runstats) {
   
-  url <- Sys.getenv("TURSO_URL")
-  token <- Sys.getenv("TURSO_TOKEN")
+  con <- get_con()
+  on.exit(dbDisconnect(con))  # ensures connection is closed even if error occurs
+  
   today <- Sys.Date()
   price_changes <- 0
+  cityname <- strsplit(city, "/")[[1]][2]
   
-  adsdbname <- ifelse(type=="buy","ads_porto_buy","ads_porto_rent")
-  pricedbname <- ifelse(type=="buy","price_changes_porto_buy","price_changes_porto_rent")
+  table_ads    <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  table_prices <- ifelse(type == "buy", "price_changes_buy", "price_changes_rent")
   
-  # 1. scrape
-  base_url <- ifelse(type=="buy","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=","https://www.imovirtual.com/pt/resultados/comprar/apartamento/porto/porto?page=")
+  # 1. Scrape
+  base_url <- paste0(
+    ifelse(type == "buy",
+           "https://www.imovirtual.com/pt/resultados/comprar/apartamento/",
+           "https://www.imovirtual.com/pt/resultados/arrendar/apartamento/"
+    ), city, "?page="
+  )
   current_ads <- scrape_listings(base_url)
   print("current ads scraped")
-  # 2. read DB
-  db_ads <- read_ads(url, token, adsdbname)
-  #price_table <- read_prices(url, token, pricedbname)
+  
+  # 2. Read DB - now a simple dataframe, no parsing needed
+  con <- safe_con(con)
+  db_ads <- read_ads(con, cityname, type)
   print("database read")
   
-  # Convert to dataframes
-  parse_turso_rows <- function(rows, col_names) {
-    df_list <- lapply(rows, function(row) {
-      values <- sapply(row, function(cell) cell$value)
-      
-      # IMPORTANT: transpose to make it a single row
-      as.data.frame(t(values), stringsAsFactors = FALSE)
-    })
-    
-    df <- do.call(rbind, df_list)
-    colnames(df) <- col_names
-    
-    return(df)
-  }
-  db_ads <- parse_turso_rows(db_ads,c("id","price"))
-  #price_table <- parse_turso_rows(price_table,c("id","old_price","new_price","date"))
-  print("databases converted to dataframes")
   # 3. ID logic
-  new_ids <- setdiff(current_ads$id, db_ads$id)
+  new_ids      <- setdiff(current_ads$id, db_ads$id)
   existing_ids <- intersect(current_ads$id, db_ads$id)
   inactive_ids <- setdiff(
-    db_ads$id[db_ads$is_active == "Yes"],
+    db_ads$id[db_ads$is_active == 1],
     current_ads$id
   )
   print("ids extracted")
   
-  # 4. NEW ADS
+  # 4. New ads
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
-  new_data <- scrape_new_ads(new_listings, today)
-  
-  insert_ads(new_data, url, token, adsdbname)
+  new_data <- scrape_new_ads(new_listings, today, cityname)
+  con <- safe_con(con)
+  insert_ads(new_data, con, type, cityname)
   print("new ads inserted into database")
   
-  # 5. UPDATE EXISTING
-  for(id in existing_ids) {
+  con <- safe_con(con)
+  # 5. Update existing
+  if (length(existing_ids) > 0) {
     
-    dbprice <- db_ads$price[db_ads$id == id]
-    currentprice <- current_ads$price[current_ads$id == id]
+    # Bulk update last_seen for all existing ids
+    ids_sql <- paste0("('", paste(existing_ids, collapse = "','"), "')")
+    dbExecute(con, sprintf(
+      "UPDATE %s SET last_seen = '%s' WHERE id IN %s AND city = '%s';",
+      table_ads, today, ids_sql, cityname
+    ))
     
-    # update last_seen
+    # Find price changes by joining current_ads with db_ads in R
+    current_subset <- current_ads[current_ads$id %in% existing_ids, c("id", "price")]
+    db_subset      <- db_ads[db_ads$id %in% existing_ids, c("id", "price")]
+    merged         <- merge(current_subset, db_subset, by = "id", suffixes = c("_current", "_db"))
+    changed        <- merged[merged$price_current != merged$price_db, ]
     
-    sql_update_seen <- sprintf(paste0(
-      "UPDATE ",adsdbname," SET last_seen = '%s' WHERE id = '%s';")
-      ,
-      today, id
-    )
-    turso_query(sql_update_seen, url, token)
-    
-    # price change
-    if(length(currentprice) > 0 && dbprice != currentprice) {
-      
-      sql_price <- sprintf(paste0(
-        "INSERT INTO ",pricedbname," (id, old_price, new_price, date)
-         VALUES ('%s', %f, %f, '%s');")
-        ,
-        id, as.numeric(dbprice), currentprice, today
+    if (nrow(changed) > 0) {
+      # Bulk insert price changes
+      price_changes_df <- data.frame(
+        id        = changed$id,
+        city      = cityname,
+        old_price = as.numeric(changed$price_db),
+        new_price = as.numeric(changed$price_current),
+        date      = today
       )
+      dbWriteTable(con, table_prices, price_changes_df, append = TRUE, row.names = FALSE)
       
-      turso_query(sql_price, url, token)
+      # Bulk update prices - loop is still needed here but only for changed rows
+      # which should be a small subset
+      for (i in 1:nrow(changed)) {
+        dbExecute(con, sprintf(
+          "UPDATE %s SET price = %f WHERE id = '%s' AND city = '%s';",
+          table_ads, as.numeric(changed$price_current[i]), changed$id[i], cityname
+        ))
+      }
       
-      sql_update_price <- sprintf(paste0(
-        "UPDATE ",adsdbname," SET price = %f WHERE id = '%s';")
-        ,
-        currentprice, id
-      )
-      
-      turso_query(sql_update_price, url, token)
-      
-      price_changes <- price_changes+1
+      price_changes <- nrow(changed)
     }
   }
   print("existing ads updated")
-  # 6. INACTIVE ADS
-  for(id in inactive_ids) {
-    sql_inactive <- sprintf(paste0(
-      "UPDATE ",adsdbname," SET is_active = 'No' WHERE id = '%s';")
-      ,
-      id
-    )
-    turso_query(sql_inactive, url, token)
+  
+  # 6. Inactive ads - one bulk update
+  con <- safe_con(con)
+  if (length(inactive_ids) > 0) {
+    ids_sql <- paste0("('", paste(inactive_ids, collapse = "','"), "')")
+    dbExecute(con, sprintf(
+      "UPDATE %s SET is_active = 0 WHERE id IN %s AND city = '%s';",
+      table_ads, ids_sql, cityname
+    ))
   }
   print("inactive ads updated")
-  new_log_data <- list(date=today,new_listings=length(new_ids),existing_listings=length(existing_ids),inactive_listings=length(inactive_ids),price_changes=price_changes)
-  print(paste0("new log data:",new_log_data))
-  old_log_data <- read.csv("log/scraper_log.csv")
-  old_log_data <- rbind(old_log_data,new_log_data)
-  write.csv(old_log_data,"log/scraper_log.csv",row.names=FALSE)
-  print("log data written")
+  
+  runstats$new_listings <<- runstats$new_listings+length(new_ids)
+  runstats$existing_listings <<- runstats$existing_listings+length(existing_ids)
+  runstats$inactive_listings <<- runstats$inactive_listings+length(inactive_ids)
+  runstats$price_changes <<- runstats$price_changes+price_changes
+  
+  return(runstats)
 }
 
-scrape_new_ads <- function(new_listings,date,maxads=4000){
+scrape_new_ads <- function(new_listings,date,cityname,maxads=4000){
   nads <- min(maxads,nrow(new_listings))
   new_listings  <- new_listings[1:nads,]
   newdata <- matrix(nrow=nads,ncol=16)
@@ -309,9 +331,10 @@ scrape_new_ads <- function(new_listings,date,maxads=4000){
   newdata <- data.frame(newdata)
   colnames(newdata) <- c("id","area","tipologia","andar","anunciante","tipo","novo","jardim","energia","elevador","garagem","terraco","varanda","lat","lon","neighbourhood")
   newdata$price <- new_listings$price
-  newdata$is_active <- "Yes"
+  newdata$is_active <- 1
   newdata$first_seen <- date
   newdata$last_seen <- date
+  newdata$city <- cityname
   newdata <- newdata[!is.na(newdata[,1]),]
   return(newdata)
 }
@@ -364,9 +387,12 @@ turso_query <- function(sql, url, token) {
   content(res, as = "parsed", simplifyVector = TRUE)
 }
 
-read_ads <- function(url, token, name) {
-  res <- turso_query(paste0("SELECT id,price FROM ",name,";"), url, token)
-  res$results$response$result$rows
+read_ads <- function(con, city, type) {
+  table_name <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  dbGetQuery(con, sprintf(
+    "SELECT id, price FROM %s WHERE city = '%s';",
+    table_name, city
+  ))
 }
 
 read_prices <- function(url, token, name) {
@@ -374,50 +400,22 @@ read_prices <- function(url, token, name) {
   res$results$response$result$rows
 }
 
-insert_ads <- function(df, url, token, name) {
-  for(i in 1:nrow(df)) {
-    print(i)
-    row <- df[i, ]
-    
-    sql <- sprintf(
-      paste0(
-        "INSERT INTO ",name," (
-          id, area, tipologia, andar, anunciante, tipo, novo,
-          jardim, energia, elevador, garagem, terraco, varanda,
-          lat, lon, neighbourhood, price, is_active, first_seen, last_seen
-        ) VALUES (
-          '%s','%s','%s','%s','%s','%s','%s',
-          %d,'%s','%s',%d,%d,%d,
-          %f,%f,'%s',%f,'%s','%s','%s'
-        );"
-      ),
-      row$id,
-      row$area,
-      row$tipologia,
-      row$andar,
-      row$anunciante,
-      row$tipo,
-      row$novo,
-      as.numeric(row$jardim),
-      row$energia,
-      row$elevador,
-      as.numeric(row$garagem),
-      as.numeric(row$terraco),
-      as.numeric(row$varanda),
-      as.numeric(row$lat),
-      as.numeric(row$lon),
-      row$neighbourhood,
-      row$price,
-      row$is_active,
-      row$first_seen,
-      row$last_seen
-    )
-    
-    turso_query(sql, url, token)
-  }
+insert_ads <- function(df, con, type, city) {
+  table_name <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  dbWriteTable(con, table_name, df, append = TRUE, row.names = FALSE)
 }
 
 update_database <- function(){
-  update_porto("rent")
-  update_porto("buy")
+  runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0)
+  cities <- c("porto/porto","faro/albufeira","faro/loule","faro/portimao","faro/lagos","faro/lagoa","faro/faro","lisboa/lisboa")
+  for(city in cities){
+    print(paste0("Scraping ",city))
+    runstats <- update("rent",city,runstats)
+    runstats <- update("buy",city,runstats)
+  }
+  print(paste0("new log data: ", runstats))
+  old_log_data <- read.csv("log/scraper_log.csv")
+  old_log_data <- rbind(old_log_data, runstats)
+  write.csv(old_log_data, "log/scraper_log.csv", row.names = FALSE)
+  print("log data written")
 }
