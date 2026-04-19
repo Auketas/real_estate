@@ -302,10 +302,10 @@ update <- function(type, city,runstats) {
   }
   print("inactive ads updated")
   
-  runstats$new_listings <<- runstats$new_listings+length(new_ids)
-  runstats$existing_listings <<- runstats$existing_listings+length(existing_ids)
-  runstats$inactive_listings <<- runstats$inactive_listings+length(inactive_ids)
-  runstats$price_changes <<- runstats$price_changes+price_changes
+  runstats$new_listings <- runstats$new_listings+length(new_ids)
+  runstats$existing_listings <- runstats$existing_listings+length(existing_ids)
+  runstats$inactive_listings <- runstats$inactive_listings+length(inactive_ids)
+  runstats$price_changes <- runstats$price_changes+price_changes
   
   return(runstats)
 }
