@@ -3,6 +3,10 @@ name: run_imovirtual_scraper
 env:
     TURSO_URL: ${{ secrets.TURSO_URL }}
     TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+    NEON_DBNAME: ${{ secrets.NEON_DBNAME }}
+    NEON_HOST: ${{ secrets.NEON_HOST }}
+    NEON_USER: ${{ secrets.NEON_USER }}
+    NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
 
 on:
   schedule:
