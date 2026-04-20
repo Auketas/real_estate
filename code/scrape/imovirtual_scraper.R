@@ -36,18 +36,32 @@ safe_con <- function(con) {
   })
 }
 
+fetch_with_retry <- function(url, max_retries = 3, backoff = c(5, 20, 60)) {
+  for (attempt in 1:(max_retries + 1)) {
+    page <- tryCatch({
+      resp <- GET(url, add_headers("User-Agent" = "Mozilla/5.0"))
+      read_html(resp)
+    }, error = function(e) e)
+
+    if (!inherits(page, "error")) return(page)
+
+    if (attempt <= max_retries) {
+      wait <- backoff[min(attempt, length(backoff))]
+      message(sprintf("Request failed (attempt %d/%d): %s — retrying in %ds...",
+                      attempt, max_retries + 1, conditionMessage(page), wait))
+      Sys.sleep(wait)
+    }
+  }
+  stop(sprintf("Gave up after %d attempts: %s", max_retries + 1, conditionMessage(page)))
+}
+
 get_listing_info <- function(page_num,base_url) {
   url <- paste0(
     base_url,
     page_num
   )
-  
-  resp <- GET(
-    url,
-    add_headers("User-Agent" = "Mozilla/5.0")
-  )
-  
-  page <- read_html(resp)
+
+  page <- fetch_with_retry(url)
   
   cards <- page %>%
     html_elements("section[data-sentry-component='BaseCard']")
@@ -101,7 +115,14 @@ scrape_listings <- function(base_url){
   repeat {
     cat("Scraping page", page, "\n")
     
-    pageresults <- get_listing_info(page,base_url)
+    pageresults <- tryCatch(
+      get_listing_info(page, base_url),
+      error = function(e) {
+        message(sprintf("Skipping page %d after all retries: %s", page, e$message))
+        NULL
+      }
+    )
+    if (is.null(pageresults)) { page <- page + 1; next }
     results <- pageresults$results
     nads <- pageresults$nads
     if(length(results$link)==0){
@@ -156,12 +177,7 @@ scrape_listings <- function(base_url){
 }
 
 scrape_ad <- function(url){
-  resp <- GET(
-    url,
-    add_headers("User-Agent" = "Mozilla/5.0")
-  )
-  
-  page <- read_html(resp)
+  page <- fetch_with_retry(url)
   features <- page %>%
     html_elements("div.css-1okys8k.e178zspo0") %>%
     html_text(trim = TRUE)
