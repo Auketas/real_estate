@@ -291,7 +291,8 @@ update <- function(type, city,runstats) {
         city      = cityname,
         old_price = as.numeric(changed$price_db),
         new_price = as.numeric(changed$price_current),
-        date      = today
+        date      = today,
+        platform  = "imovirtual"
       )
       dbWriteTable(con, table_prices, price_changes_df, append = TRUE, row.names = FALSE)
       
@@ -353,6 +354,7 @@ scrape_new_ads <- function(new_listings,date,cityname,maxads=4000){
   newdata$first_seen <- date
   newdata$last_seen <- date
   newdata$city <- cityname
+  newdata$platform <- "imovirtual"
   newdata <- newdata[!is.na(newdata[,1]),]
   return(newdata)
 }
