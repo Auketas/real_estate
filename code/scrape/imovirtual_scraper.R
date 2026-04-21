@@ -274,8 +274,8 @@ update <- function(type, city,runstats) {
     # Bulk update last_seen for all existing ids
     ids_sql <- paste0("('", paste(existing_ids, collapse = "','"), "')")
     dbExecute(con, sprintf(
-      "UPDATE %s SET last_seen = '%s' WHERE id IN %s AND city = '%s';",
-      table_ads, today, ids_sql, cityname
+      "UPDATE %s SET last_seen = '%s' WHERE id IN %s AND city = '%s' AND platform = '%s';",
+      table_ads, today, ids_sql, cityname, "imovirtual"
     ))
     
     # Find price changes by joining current_ads with db_ads in R
@@ -300,8 +300,8 @@ update <- function(type, city,runstats) {
       # which should be a small subset
       for (i in 1:nrow(changed)) {
         dbExecute(con, sprintf(
-          "UPDATE %s SET price = %f WHERE id = '%s' AND city = '%s';",
-          table_ads, as.numeric(changed$price_current[i]), changed$id[i], cityname
+          "UPDATE %s SET price = %f WHERE id = '%s' AND city = '%s' AND platform = '%s';",
+          table_ads, as.numeric(changed$price_current[i]), changed$id[i], cityname, "imovirtual"
         ))
       }
       
@@ -315,8 +315,8 @@ update <- function(type, city,runstats) {
   if (length(inactive_ids) > 0) {
     ids_sql <- paste0("('", paste(inactive_ids, collapse = "','"), "')")
     dbExecute(con, sprintf(
-      "UPDATE %s SET is_active = 0 WHERE id IN %s AND city = '%s';",
-      table_ads, ids_sql, cityname
+      "UPDATE %s SET is_active = 0 WHERE id IN %s AND city = '%s' AND platform = '%s';",
+      table_ads, ids_sql, cityname, "imovirtual"
     ))
   }
   print("inactive ads updated")
@@ -426,7 +426,7 @@ insert_ads <- function(df, con, type, city) {
 }
 
 update_database <- function(){
-  runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0)
+  runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0,"platform"="imovirtual")
   cities <- c("porto/porto","faro/albufeira","faro/loule","faro/portimao","faro/lagos","faro/lagoa","faro/faro","lisboa/lisboa")
   for(city in cities){
     print(paste0("Scraping ",city))
