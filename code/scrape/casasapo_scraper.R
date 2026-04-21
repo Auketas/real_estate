@@ -5,6 +5,31 @@ library(stringr)
 library(dplyr)
 library(tidygeocoder)
 
+get_con <- function() {
+  dbConnect(
+    RPostgres::Postgres(),
+    dbname = Sys.getenv("NEON_DBNAME"),
+    host = Sys.getenv("NEON_HOST"),
+    user = Sys.getenv("NEON_USER"),
+    password = Sys.getenv("NEON_PASSWORD"),
+    #dbname=dbname,
+    #host=host,
+    #user=user,
+    #password=password,
+    port = 5432,
+    sslmode = "require"
+  )
+}
+
+safe_con <- function(con) {
+  tryCatch({
+    dbExecute(con, "SELECT 1")
+    return(con)
+  }, error = function(e) {
+    message("Connection lost, reconnecting...")
+    return(get_con())
+  })
+}
 # ---- Headers ----------------------------------------------------------------
 # Casa Sapo blocks basic User-Agent strings; full browser headers are required.
 
@@ -280,6 +305,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
   newdata$first_seen <- date
   newdata$last_seen  <- date
   newdata$city       <- cityname
+  newdata$platform   <- "casa_sapo"
   newdata[!is.na(newdata[, 1]), ]
 }
 
@@ -324,4 +350,159 @@ test_sapo_single_page <- function(city = "porto", type = "buy") {
                          "terraco", "varanda", "lat", "lon", "neighbourhood"))
     print(as.data.frame(detail))
   }
+}
+
+read_ads <- function(con, city, type) {
+  table_name <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  dbGetQuery(con, sprintf(
+    "SELECT id, price FROM %s WHERE city = '%s';",
+    table_name, city
+  ))
+}
+
+insert_ads <- function(df, con, type, city) {
+  table_name <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  dbWriteTable(con, table_name, df, append = TRUE, row.names = FALSE)
+}
+
+scrape_new_ads <- function(new_listings,date,cityname,maxads=4000){
+  nads <- min(maxads,nrow(new_listings$results))
+  new_listings  <- new_listings[1:nads,]
+  newdata <- matrix(nrow=nads,ncol=16)
+  for(i in 1:nads){
+    print(i)
+    Sys.sleep(2)
+    
+    result <- tryCatch(
+      scrape_ad(new_listings$results$link[i]),
+      error = function(e) {
+        message(paste("Error at row", i, ":", e$message))
+        return(rep(NA, 16))  
+      }
+    )
+    
+    newdata[i,] <- result
+  }
+  newdata <- data.frame(newdata)
+  colnames(newdata) <- c("id","area","tipologia","andar","anunciante","tipo","novo","jardim","energia","elevador","garagem","terraco","varanda","lat","lon","neighbourhood")
+  newdata$price <- new_listings$price
+  newdata$is_active <- 1
+  newdata$first_seen <- date
+  newdata$last_seen <- date
+  newdata$city <- cityname
+  newdata$platform <- "imovirtual"
+  newdata <- newdata[!is.na(newdata[,1]),]
+  return(newdata)
+}
+
+update <- function(type,city,runstats){
+  base_url <- paste0(
+    "https://casa.sapo.pt/",
+    ifelse(type == "buy", "comprar", "arrendar"),
+    "/apartamentos/", city, "/?page="
+  )
+  con <- get_con()
+  on.exit(dbDisconnect(con))  # ensures connection is closed even if error occurs
+  
+  today <- Sys.Date()
+  price_changes <- 0
+  
+  table_ads    <- ifelse(type == "buy", "ads_buy", "ads_rent")
+  table_prices <- ifelse(type == "buy", "price_changes_buy", "price_changes_rent")
+  
+  current_ads <- scrape_listings_sapo(base_url)
+  print("listings scraped")
+  
+  db_ads <- read_ads(con, cityname, type)
+  print("database read")
+  
+  new_ids      <- setdiff(current_ads$id, db_ads$id)
+  existing_ids <- intersect(current_ads$id, db_ads$id)
+  inactive_ids <- setdiff(
+    db_ads$id[db_ads$is_active == 1],
+    current_ads$id
+  )
+  print("ids extracted")
+  
+  new_listings <- current_ads[current_ads$id %in% new_ids, ]
+  if(nrow(new_listings)>0){
+    new_data <- scrape_new_ads(new_listings, today, city)
+    con <- safe_con(con)
+    insert_ads(new_data, con, type, cityname)
+  }
+  print("new ads inserted into database")
+  
+  if (length(existing_ids) > 0) {
+    
+    # Bulk update last_seen for all existing ids
+    ids_sql <- paste0("('", paste(existing_ids, collapse = "','"), "')")
+    dbExecute(con, sprintf(
+      "UPDATE %s SET last_seen = '%s' WHERE id IN %s AND city = '%s' AND platform = '%s';",
+      table_ads, today, ids_sql, cityname, "casa_sapo"
+    ))
+    
+    # Find price changes by joining current_ads with db_ads in R
+    current_subset <- current_ads[current_ads$id %in% existing_ids, c("id", "price")]
+    db_subset      <- db_ads[db_ads$id %in% existing_ids, c("id", "price")]
+    merged         <- merge(current_subset, db_subset, by = "id", suffixes = c("_current", "_db"))
+    changed        <- merged[merged$price_current != merged$price_db, ]
+    
+    if (nrow(changed) > 0) {
+      # Bulk insert price changes
+      price_changes_df <- data.frame(
+        id        = changed$id,
+        city      = cityname,
+        old_price = as.numeric(changed$price_db),
+        new_price = as.numeric(changed$price_current),
+        date      = today,
+        platform  = "casa_sapo"
+      )
+      dbWriteTable(con, table_prices, price_changes_df, append = TRUE, row.names = FALSE)
+      
+      # Bulk update prices - loop is still needed here but only for changed rows
+      # which should be a small subset
+      for (i in 1:nrow(changed)) {
+        dbExecute(con, sprintf(
+          "UPDATE %s SET price = %f WHERE id = '%s' AND city = '%s' AND platform = '%s';",
+          table_ads, as.numeric(changed$price_current[i]), changed$id[i], cityname, "casa_sapo"
+        ))
+      }
+      
+      price_changes <- nrow(changed)
+    }
+  }
+  print("existing ads updated")
+  
+  con <- safe_con(con)
+  if (length(inactive_ids) > 0) {
+    ids_sql <- paste0("('", paste(inactive_ids, collapse = "','"), "')")
+    dbExecute(con, sprintf(
+      "UPDATE %s SET is_active = 0 WHERE id IN %s AND city = '%s' AND platform = '%s';",
+      table_ads, ids_sql, cityname, "casa_sapo"
+    ))
+  }
+  print("inactive ads updated")
+  
+  runstats$new_listings <- runstats$new_listings+length(new_ids)
+  runstats$existing_listings <- runstats$existing_listings+length(existing_ids)
+  runstats$inactive_listings <- runstats$inactive_listings+length(inactive_ids)
+  runstats$price_changes <- runstats$price_changes+price_changes
+  
+  return(runstats)
+}
+
+update_database(){
+  cities_sapo <- c("porto", "lisboa", "albufeira", "loule",
+                   "portimao", "lagos", "lagoa", "faro")
+  runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0,"plattform"="casa sapo")
+  for(city in cities){
+    print(paste0("Scraping ",city))
+    runstats <- update("rent",city,runstats)
+    runstats <- update("buy",city,runstats)
+  }
+  print(paste0("new log data: ", runstats))
+  old_log_data <- read.csv("log/scraper_log.csv")
+  old_log_data <- rbind(old_log_data, runstats)
+  write.csv(old_log_data, "log/scraper_log.csv", row.names = FALSE)
+  print("log data written")
 }
