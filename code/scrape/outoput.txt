@@ -1,0 +1,20 @@
+[1] "Scraping porto/porto"
+Scraping page 1 
+[1] "36 listings scraped"
+Scraping page 2 
+[1] "33 listings scraped"
+Scraping page 3 
+[1] "37 listings scraped"
+Scraping page 4 
+[1] "37 listings scraped"
+Scraping page 5 
+[1] "37 listings scraped"
+Scraping page 6 
+[1] "37 listings scraped"
+Scraping page 7 
+[1] "37 listings scraped"
+Scraping page 8 
+Error: Error in read_html.response(resp) : Bad Gateway (HTTP 502).
+Calls: update_database ... get_listing_info -> read_html -> read_html.response -> <Anonymous>
+Execution halted
+Error: Process completed with exit code 1.

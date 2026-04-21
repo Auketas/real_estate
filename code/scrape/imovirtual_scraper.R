@@ -260,9 +260,11 @@ update <- function(type, city,runstats) {
   
   # 4. New ads
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
-  new_data <- scrape_new_ads(new_listings, today, cityname)
-  con <- safe_con(con)
-  insert_ads(new_data, con, type, cityname)
+  if(nrow(new_listings)>0){
+    new_data <- scrape_new_ads(new_listings, today, cityname)
+    con <- safe_con(con)
+    insert_ads(new_data, con, type, cityname)
+  }
   print("new ads inserted into database")
   
   con <- safe_con(con)
