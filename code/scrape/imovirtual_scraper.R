@@ -212,9 +212,6 @@ scrape_ad <- function(url){
   lon <- data$props$pageProps$ad$location$coordinates$longitude
   
   id <- data$props$pageProps$id
-  if(substr(id,1,2)=="ID"){
-    id <- substr(id,3,nchar(id))
-  }
   
   neighbourhood <- convert_coordinates_to_neighbourhood(lon,lat)
   
