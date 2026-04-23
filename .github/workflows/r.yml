@@ -36,3 +36,11 @@ jobs:
       - name: Run R script
         run: |
           Rscript code/scrape/run_imovirtual_scraper.R
+
+      - name: Commit and push log update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add log/scraper_log.csv
+          git diff --staged --quiet || git commit -m "Update scraper log [skip ci]"
+          git push
