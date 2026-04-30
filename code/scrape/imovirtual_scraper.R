@@ -220,18 +220,15 @@ scrape_ad <- function(url){
 }
 
 update <- function(type, city,runstats) {
-  
-  con <- get_con()
-  on.exit(dbDisconnect(con))  # ensures connection is closed even if error occurs
-  
+
   today <- Sys.Date()
   price_changes <- 0
   cityname <- strsplit(city, "/")[[1]][2]
-  
+
   table_ads    <- ifelse(type == "buy", "ads_buy", "ads_rent")
   table_prices <- ifelse(type == "buy", "price_changes_buy", "price_changes_rent")
-  
-  # 1. Scrape
+
+  # 1. Scrape first, before opening a DB connection, so the connection is always fresh
   base_url <- paste0(
     ifelse(type == "buy",
            "https://www.imovirtual.com/pt/resultados/comprar/apartamento/",
@@ -240,9 +237,11 @@ update <- function(type, city,runstats) {
   )
   current_ads <- scrape_listings(base_url)
   print("current ads scraped")
-  
+
+  con <- get_con()
+  on.exit(dbDisconnect(con))
+
   # 2. Read DB - now a simple dataframe, no parsing needed
-  con <- safe_con(con)
   db_ads <- read_ads(con, cityname, type)
   print("database read")
   
