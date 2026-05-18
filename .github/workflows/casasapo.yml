@@ -1,0 +1,44 @@
+name: run_casasapo_scraper
+
+env:
+    NEON_DBNAME: ${{ secrets.NEON_DBNAME }}
+    NEON_HOST: ${{ secrets.NEON_HOST }}
+    NEON_USER: ${{ secrets.NEON_USER }}
+    NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
+
+on:
+  schedule:
+    - cron: "0 18 * * *"   # runs every day at 18:00 UTC (12 hours after imovirtual)
+  workflow_dispatch:        # allows manual trigger too
+
+jobs:
+  run-r:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
+
+      - name: Install dependencies
+        run: |
+          Rscript -e 'install.packages(c("DBI","RPostgres","httr","rvest","jsonlite","stringr","dplyr","tidygeocoder"), repos="https://cloud.r-project.org")'
+
+      - name: Run R script
+        run: |
+          Rscript code/scrape/run_casasapo_scraper.R
+
+      - name: Commit and push log update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add log/scraper_log.csv
+          git diff --staged --quiet || git commit -m "Update scraper log [skip ci]"
+          git push
