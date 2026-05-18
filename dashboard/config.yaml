@@ -1,0 +1,17 @@
+# User credentials for the dashboard login.
+# Passwords must be bcrypt-hashed — never store plaintext here.
+# To generate a hash in Python:
+#   import streamlit_authenticator as stauth
+#   stauth.Hasher(['your_password']).generate()
+
+credentials:
+  usernames:
+    user1:
+      email: user@example.com
+      name: First User
+      password: "$2b$12$replacethiswitharealhash"
+
+cookie:
+  expiry_days: 30
+  key: "replace-with-a-long-random-string"
+  name: "portugal_re_auth"
