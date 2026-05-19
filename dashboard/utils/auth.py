@@ -7,8 +7,14 @@ from yaml.loader import SafeLoader
 
 def load_authenticator():
     config_path = Path(__file__).parent.parent / "config.yaml"
-    with open(config_path) as f:
-        config = yaml.load(f, Loader=SafeLoader)
+    if config_path.exists():
+        with open(config_path) as f:
+            config = yaml.load(f, Loader=SafeLoader)
+    else:
+        config = {
+            "credentials": st.secrets["credentials"].to_dict(),
+            "cookie": st.secrets["cookie"].to_dict(),
+        }
     return stauth.Authenticate(
         config["credentials"],
         config["cookie"]["name"],
