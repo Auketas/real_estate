@@ -8,6 +8,7 @@ A Portugal real estate data pipeline and paid dashboard targeting expats and buy
 .github/workflows/
   r.yml               — imovirtual scraper, runs daily 06:00 UTC
   casasapo.yml        — casa sapo scraper, runs daily 18:00 UTC (12h gap to avoid DB conflicts)
+  keep_alive.yml      — pings Streamlit app every 10 min to prevent sleep
 code/scrape/
   imovirtual_scraper.R     — live and working
   run_imovirtual_scraper.R — entry point called by workflow
@@ -45,21 +46,17 @@ Cities scraped: porto, lisboa, albufeira, loule, portimao, lagos, lagoa, faro
 ## GitHub Actions secrets needed
 `NEON_DBNAME`, `NEON_HOST`, `NEON_USER`, `NEON_PASSWORD` — already configured for imovirtual, casasapo.yml uses the same ones.
 
-## Dashboard status
-- Code is written and pushed, not yet deployed or tested locally
-- Blocked on local test: user's Python is 32-bit 3.8; needs 64-bit Python 3.11+ installed
-- Deployment target: Streamlit Community Cloud (share.streamlit.io)
-- Auth: `streamlit-authenticator` with `config.yaml`
-- Payments: plan to use LemonSqueezy; manually add users to `config.yaml` at MVP stage
+## Dashboard
+- **Live at:** https://real-estate-pt.streamlit.app/
+- **Auth:** `streamlit-authenticator==0.3.3` — credentials stored in Streamlit Community Cloud secrets UI (not in repo). `auth.py` falls back to secrets when `config.yaml` is absent (cloud), reads file when present (local dev).
+- **Adding a subscriber:** generate a bcrypt hash locally, add a `[credentials.usernames.name]` block in the Streamlit secrets UI. No code change needed.
+- **Payments:** plan to use LemonSqueezy; manually add users via secrets UI at MVP stage.
+- **Local dev:** use 64-bit Python 3.10 venv (`dashboard/.venv`), activate with `.\.venv\Scripts\Activate.ps1`, run `streamlit run app.py` from `dashboard/`.
 
 ## What's next
-1. User installs 64-bit Python 3.11+, runs `pip install -r dashboard/requirements.txt`
-2. Fill in `dashboard/.streamlit/secrets.toml` with Neon credentials
-3. Generate a bcrypt hash and add a user to `dashboard/config.yaml` (see SETUP.md)
-4. Run `streamlit run dashboard/app.py` and verify all pages render
-5. Deploy to Streamlit Community Cloud
-6. Add supplementary data sources (see DECISIONS.md for the list)
-7. Set up LemonSqueezy product and payment flow
+1. Test all dashboard pages end-to-end on the live URL
+2. Add supplementary data sources (see DECISIONS.md for the list)
+3. Set up LemonSqueezy product and payment flow
 
 ## Gotchas
 - `read_ads()` in both scrapers filters by `platform` — do not remove this or scrapers will mark each other's listings inactive
@@ -67,3 +64,4 @@ Cities scraped: porto, lisboa, albufeira, loule, portimao, lagos, lagoa, faro
 - Scraper log uses `platform = "casa_sapo"` (underscore) — keep consistent
 - Dashboard `config.yaml` and `secrets.toml` are gitignored — do not commit them
 - Streamlit Community Cloud: set secrets via the web UI, not in the repo
+- `streamlit-authenticator` is pinned to `==0.3.3` — newer versions have a breaking Hasher API change
