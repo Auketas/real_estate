@@ -48,9 +48,10 @@ Cities scraped: porto, lisboa, albufeira, loule, portimao, lagos, lagoa, faro
 
 ## Dashboard
 - **Live at:** https://real-estate-pt.streamlit.app/
+- **Landing page:** `app.py` pre-login screen is public-facing — shows product description, features, €19/month price, and a Subscribe button. No separate marketing site.
 - **Auth:** `streamlit-authenticator==0.3.3` — credentials stored in Streamlit Community Cloud secrets UI (not in repo). `auth.py` falls back to secrets when `config.yaml` is absent (cloud), reads file when present (local dev).
 - **Adding a subscriber:** generate a bcrypt hash locally, add a `[credentials.usernames.name]` block in the Streamlit secrets UI. No code change needed.
-- **Payments:** plan to use LemonSqueezy; manually add users via secrets UI at MVP stage.
+- **Payments:** LemonSqueezy at https://realestatept.lemonsqueezy.com/checkout — €19/month. Manually add users via secrets UI at MVP stage.
 - **Local dev:** use 64-bit Python 3.10 venv (`dashboard/.venv`), activate with `.\.venv\Scripts\Activate.ps1`, run `streamlit run app.py` from `dashboard/`.
 
 ## What's next

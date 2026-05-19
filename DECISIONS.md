@@ -11,10 +11,12 @@ for free alongside it.
 ## Monetization
 - **Format**: live web dashboard (lower ongoing maintenance than monthly PDF reports)
 - **Payments**: LemonSqueezy (handles EU VAT automatically, simpler than Stripe for solo products)
-- **Access control**: `streamlit-authenticator` library with per-user bcrypt credentials
-- **MVP flow**: customer pays on LemonSqueezy → manually add credentials to `config.yaml` → push
+  - Checkout: https://realestatept.lemonsqueezy.com/checkout
+  - Tax category: SaaS — personal use
+- **Pricing**: €19/month. Optional 6-month plan at a discount (second product in LemonSqueezy).
+- **Access control**: `streamlit-authenticator==0.3.3` with per-user bcrypt credentials
+- **MVP flow**: customer pays on LemonSqueezy → manually add credentials block to Streamlit secrets UI
 - **Future**: automate user provisioning via LemonSqueezy webhook once volume justifies it
-- **Pricing**: not yet decided
 
 ## Tech stack decisions
 
@@ -29,11 +31,14 @@ for free alongside it.
 Streamlit was chosen over Metabase (not polished enough for a paid product) and a custom
 React app (too much build time for an MVP).
 
+Streamlit Community Cloud free tier sleeps after inactivity — mitigated with a GitHub Actions
+keep-alive workflow (`.github/workflows/keep_alive.yml`) that pings the app every 10 minutes.
+
 ## Data sources
 
 ### Live (already scraping)
 - **Imovirtual** — listing prices, buy + rent, 8 cities. Live since before this session.
-- **Casa Sapo** — listing prices, buy + rent, 8 cities. Scraper fixed and workflow added this session.
+- **Casa Sapo** — listing prices, buy + rent, 8 cities. Scraper fixed and workflow added.
 
 ### Planned additions (all free, infrequently updated)
 - **INE** (Statistics Portugal) — transaction prices, housing price index. Official, has API.
@@ -71,17 +76,10 @@ Dashboard supports three levels: national overview → city comparison → neigh
 4. **Rental Yield** — gross yield by city and apartment type, investor-focused
 5. **Expat Tools** — live exchange rates, cost of living reference, climate snapshot
 
-## What was done this session
-- Fixed all bugs in `casasapo_scraper.R` (syntax error, wrong variable names, wrong function calls, missing libraries, platform filter in DB queries)
-- Created `run_casasapo_scraper.R` runner script
-- Created `.github/workflows/casasapo.yml` scheduled 12 hours after imovirtual
-- Built full Streamlit dashboard scaffold (5 pages, auth, DB layer, ECB exchange rates)
-- All changes pushed to GitHub
+The pre-login screen doubles as a public landing page — product description, feature list,
+pricing, and a Subscribe button linking to LemonSqueezy. No separate marketing site needed at MVP.
 
 ## Immediate next steps
-1. Install 64-bit Python 3.11+ locally (current install is 32-bit 3.8, incompatible with pyarrow)
-2. Test dashboard locally against real Neon data
-3. Deploy to Streamlit Community Cloud
-4. Decide on pricing and set up LemonSqueezy product page
-5. Add INE transaction data as first supplementary source
-6. Consider a Claude scheduled routine to monitor scraper health across both scrapers
+1. Test all dashboard pages end-to-end on the live URL
+2. Add INE transaction data as first supplementary source
+3. Automate LemonSqueezy webhook → user provisioning once paying subscribers arrive
