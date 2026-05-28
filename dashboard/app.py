@@ -59,6 +59,15 @@ if not st.session_state.get("authentication_status"):
     st.divider()
     st.markdown("**Already a subscriber? Log in below.**")
 
+st.divider()
+col_l, col_m, col_r = st.columns(3)
+with col_l:
+    st.page_link("pages/Legal_Terms.py", label="Terms of Service")
+with col_m:
+    st.page_link("pages/Legal_Privacy.py", label="Privacy Policy")
+with col_r:
+    st.page_link("pages/Legal_Refunds.py", label="Refund Policy")
+
 authenticator.login()
 
 if st.session_state.get("authentication_status"):
