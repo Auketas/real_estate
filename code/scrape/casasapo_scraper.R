@@ -325,7 +325,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
 
 # ---- Cities -----------------------------------------------------------------
 
-cities_sapo <- c("porto", "lisboa", "albufeira", "loule",
+cities_sapo <- c("porto", "vila-nova-de-gaia", "lisboa", "albufeira", "loule",
                  "portimao", "lagos", "lagoa", "faro")
 
 # ---- Test on a single listing page ------------------------------------------
@@ -460,7 +460,7 @@ update <- function(type, city, runstats) {
 # ---- Main entry point -------------------------------------------------------
 
 update_database <- function() {
-  cities_sapo <- c("porto", "lisboa", "albufeira", "loule",
+  cities_sapo <- c("porto", "vila-nova-de-gaia", "lisboa", "albufeira", "loule",
                    "portimao", "lagos", "lagoa", "faro")
   runstats <- list(
     "date"               = Sys.Date(),
