@@ -42,13 +42,28 @@ sapo_headers <- function(referer = "https://casa.sapo.pt/") {
   )
 }
 
+# ---- Rate-limit-aware GET ---------------------------------------------------
+
+# Retries on HTTP 429 with exponential backoff (up to max_tries attempts).
+safe_get <- function(url, headers, max_tries = 5) {
+  wait <- 30
+  for (i in seq_len(max_tries)) {
+    resp <- GET(url, headers)
+    if (status_code(resp) != 429) return(resp)
+    message("429 Too Many Requests — waiting ", wait, "s before retry ", i, "/", max_tries)
+    Sys.sleep(wait)
+    wait <- wait * 2
+  }
+  resp  # return last response; caller will hit the read_html error naturally
+}
+
 # ---- Listing page -----------------------------------------------------------
 
 # Scrape one page of search results.
 # Returns list(results = data.frame, nads = integer)
 get_listing_info_sapo <- function(page_num, base_url) {
   url  <- paste0(base_url, page_num)
-  resp <- GET(url, sapo_headers("https://casa.sapo.pt/"))
+  resp <- safe_get(url, sapo_headers("https://casa.sapo.pt/"))
   page <- read_html(resp)
 
   # Each card is a div whose id begins with "property_"
@@ -95,7 +110,7 @@ scrape_listings_sapo <- function(base_url) {
 
   repeat {
     cat("Scraping page", page, "\n")
-    Sys.sleep(1.5)
+    Sys.sleep(runif(1, 3, 6))
 
     pageresults <- get_listing_info_sapo(page, base_url)
     results     <- pageresults$results
@@ -183,7 +198,7 @@ scrape_ad_sapo <- function(url) {
   # Use listing page as referer to look like a natural navigation
   listing_base <- str_extract(url, "https://casa\\.sapo\\.pt/[^/]+/apartamentos/[^/]+/")
   referer <- ifelse(is.na(listing_base), "https://casa.sapo.pt/", listing_base)
-  resp <- GET(url, sapo_headers(referer))
+  resp <- safe_get(url, sapo_headers(referer))
   page <- read_html(resp)
 
   # --- ID (UUID from data-uid attribute) ---
@@ -284,7 +299,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
 
   for (i in seq_len(nads)) {
     cat("Scraping ad", i, "of", nads, "\n")
-    Sys.sleep(2)
+    Sys.sleep(runif(1, 3, 6))
     result <- tryCatch(
       scrape_ad_sapo(new_listings$link[i]),
       error = function(e) {
@@ -458,7 +473,9 @@ update_database <- function() {
   for (city in cities_sapo) {
     print(paste0("Scraping ", city))
     runstats <- update("rent", city, runstats)
+    Sys.sleep(runif(1, 15, 30))
     runstats <- update("buy",  city, runstats)
+    Sys.sleep(runif(1, 15, 30))
   }
   print(paste0("new log data: ", runstats))
   old_log_data <- read.csv("log/scraper_log.csv")
