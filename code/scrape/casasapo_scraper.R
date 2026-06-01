@@ -376,8 +376,6 @@ update <- function(type, city, runstats) {
     ifelse(type == "buy", "comprar", "arrendar"),
     "/apartamentos/", city, "/?page="
   )
-  con <- get_con()
-  on.exit(dbDisconnect(con))  # ensures connection is closed even if error occurs
 
   today         <- Sys.Date()
   price_changes <- 0
@@ -385,10 +383,14 @@ update <- function(type, city, runstats) {
   table_ads    <- ifelse(type == "buy", "ads_buy", "ads_rent")
   table_prices <- ifelse(type == "buy", "price_changes_buy", "price_changes_rent")
 
+  # Phase 1: scrape listing pages (no DB connection held during slow work)
   current_ads <- scrape_listings_sapo(base_url)
   print("listings scraped")
 
+  # Phase 2: quick read, then close connection before the slow per-ad scrape
+  con    <- get_con()
   db_ads <- read_ads(con, city, type)
+  dbDisconnect(con)
   print("database read")
 
   new_ids      <- setdiff(current_ads$id, db_ads$id)
@@ -396,10 +398,15 @@ update <- function(type, city, runstats) {
   inactive_ids <- setdiff(db_ads$id, current_ads$id)
   print("ids extracted")
 
+  # Phase 3: slow per-ad scraping (no connection held)
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
-  if (nrow(new_listings) > 0) {
-    new_data <- scrape_new_ads_sapo(new_listings, today, city)
-    con <- safe_con(con)
+  new_data     <- if (nrow(new_listings) > 0) scrape_new_ads_sapo(new_listings, today, city) else NULL
+
+  # Phase 4: fresh connection for all writes
+  con <- get_con()
+  on.exit(dbDisconnect(con))
+
+  if (!is.null(new_data)) {
     insert_ads(new_data, con, type, city)
   }
   print("new ads inserted into database")
@@ -439,7 +446,6 @@ update <- function(type, city, runstats) {
   }
   print("existing ads updated")
 
-  con <- safe_con(con)
   if (length(inactive_ids) > 0) {
     ids_sql <- paste0("('", paste(inactive_ids, collapse = "','"), "')")
     dbExecute(con, sprintf(
