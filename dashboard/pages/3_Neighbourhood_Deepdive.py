@@ -9,8 +9,9 @@ require_auth()
 st.title("Neighbourhood Deep-dive")
 
 col1, col2 = st.columns(2)
-city     = col1.selectbox("City", ["porto", "vila-nova-de-gaia", "lisboa", "albufeira", "loule",
-                                    "portimao", "lagos", "lagoa", "faro"])
+city     = col1.selectbox("City", ["porto", "vila-nova-de-gaia", "matosinhos",
+                                    "lisboa", "cascais", "sintra",
+                                    "albufeira", "loule", "portimao", "lagos", "lagoa", "faro"])
 type_key = col2.radio("", ["buy", "rent"], horizontal=True)
 
 df = get_listings(type=type_key, city=city)

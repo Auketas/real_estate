@@ -9,7 +9,9 @@ require_auth()
 st.title("Rental Yield")
 st.caption("Gross yield = (annual rent / buy price) × 100. Data from live listings.")
 
-cities = ["porto", "vila-nova-de-gaia", "lisboa", "albufeira", "loule", "portimao", "lagos", "lagoa", "faro"]
+cities = ["porto", "vila-nova-de-gaia", "matosinhos",
+          "lisboa", "cascais", "sintra",
+          "albufeira", "loule", "portimao", "lagos", "lagoa", "faro"]
 
 # ---- Load both buy and rent listings ----------------------------------------
 buy  = get_listings(type="buy")[["city", "neighbourhood", "price", "area", "tipologia"]]
