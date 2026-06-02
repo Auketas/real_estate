@@ -29,6 +29,96 @@ safe_con <- function(con) {
   })
 }
 
+# Parse price from raw HTML text — handles ranges like "50 000 € - 55 000 €"
+# by taking the lower (first) bound before non-digit stripping joins them.
+parse_price_raw <- function(raw_price) {
+  if (grepl("\\d.*-.*\\d", raw_price)) {
+    first <- as.numeric(gsub("[^0-9]", "", strsplit(raw_price, "-")[[1]][1]))
+    if (!is.na(first) && first > 0) return(list(price = first, was_range = TRUE))
+  }
+  list(price = as.numeric(gsub("[^0-9]", "", raw_price)), was_range = FALSE)
+}
+
+write_rejection_log <- function(entries) {
+  log_file <- "log/rejected_listings.csv"
+  if (nrow(entries) == 0) return(invisible(NULL))
+  if (file.exists(log_file)) {
+    prior <- read.csv(log_file, stringsAsFactors = FALSE)
+    write.csv(rbind(prior, entries), log_file, row.names = FALSE)
+  } else {
+    write.csv(entries, log_file, row.names = FALSE)
+  }
+}
+
+validate_new_listings <- function(df, platform) {
+  keep    <- rep(TRUE, nrow(df))
+  reasons <- rep(NA_character_, nrow(df))
+
+  price_num <- suppressWarnings(as.numeric(df$price))
+  area_num  <- suppressWarnings(as.numeric(gsub("[^0-9.]", "", df$area)))
+
+  for (i in seq_len(nrow(df))) {
+    r <- character(0)
+    p <- price_num[i]; a <- area_num[i]
+
+    if (is.na(p) || p <= 0)   r <- c(r, "price_zero_or_negative")
+    else if (p > 50000000)    r <- c(r, "price_above_50M")
+
+    if (!is.na(a)) {
+      if (a <= 0)             r <- c(r, "area_zero_or_negative")
+      else if (a > 2000)      r <- c(r, "area_above_2000m2")
+      else if (!is.na(p) && p > 0) {
+        ppm2 <- p / a
+        if (ppm2 < 200)       r <- c(r, "price_per_m2_below_200")
+        else if (ppm2 > 50000) r <- c(r, "price_per_m2_above_50000")
+      }
+    }
+
+    if (is.na(df$tipologia[i]) || df$tipologia[i] == "") r <- c(r, "missing_tipologia")
+    if (is.na(df$city[i])      || df$city[i] == "")      r <- c(r, "missing_city")
+
+    if (length(r) > 0) { keep[i] <- FALSE; reasons[i] <- paste(r, collapse = "; ") }
+  }
+
+  rejected <- df[!keep, ]
+  log_entries <- if (nrow(rejected) > 0) {
+    data.frame(date = Sys.Date(), id = rejected$id, city = rejected$city,
+               platform = platform, reason = reasons[!keep], stringsAsFactors = FALSE)
+  } else {
+    data.frame(date = character(), id = character(), city = character(),
+               platform = character(), reason = character(), stringsAsFactors = FALSE)
+  }
+  list(valid = df[keep, ], rejected_log = log_entries)
+}
+
+mark_duplicates <- function(con) {
+  dedup_sql <- "
+    UPDATE %s
+    SET duplicate_flag = true
+    WHERE id IN (
+      SELECT a.id FROM %s a
+      JOIN %s b
+        ON a.id <> b.id
+       AND a.platform <> b.platform
+       AND a.is_active = 1 AND b.is_active = 1
+       AND a.lat IS NOT NULL AND b.lat IS NOT NULL
+       AND a.lon IS NOT NULL AND b.lon IS NOT NULL
+       AND a.tipologia = b.tipologia
+       AND ABS(a.lat::numeric - b.lat::numeric) < 0.0001
+       AND ABS(a.lon::numeric - b.lon::numeric) < 0.0001
+       AND a.price > 0 AND b.price > 0
+       AND ABS(a.price - b.price) / LEAST(a.price, b.price) <= 0.05
+      WHERE NOT a.duplicate_flag
+    )
+  "
+  for (tbl in c("ads_buy", "ads_rent")) {
+    tryCatch({
+      n <- dbExecute(con, sprintf(dedup_sql, tbl, tbl, tbl))
+      if (n > 0) message(sprintf("Marked %d duplicate(s) in %s", n, tbl))
+    }, error = function(e) message("mark_duplicates failed (", tbl, "): ", e$message))
+  }
+}
+
 # ---- Headers ----------------------------------------------------------------
 # Casa Sapo blocks basic User-Agent strings; full browser headers are required.
 
@@ -159,7 +249,14 @@ scrape_listings_sapo <- function(base_url) {
   )
   result <- result[!duplicated(result$id), ]
   result <- result[grepl("€", result$price), ]   # keep EUR prices only
-  result$price <- as.numeric(gsub("[^0-9]", "", result$price))
+
+  parsed     <- lapply(result$price, parse_price_raw)
+  result$price   <- sapply(parsed, `[[`, "price")
+  range_rows     <- sapply(parsed, `[[`, "was_range")
+  if (any(range_rows))
+    message(sprintf("%d listing(s) had range prices — lower bound used: %s",
+                    sum(range_rows), paste(result$id[range_rows], collapse = ", ")))
+
   result
 }
 
@@ -320,7 +417,13 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
   newdata$last_seen  <- date
   newdata$city       <- cityname
   newdata$platform   <- "casa_sapo"
-  newdata[!is.na(newdata[, 1]), ]
+  newdata <- newdata[!is.na(newdata[, 1]), ]
+  checked <- validate_new_listings(newdata, "casa_sapo")
+  write_rejection_log(checked$rejected_log)
+  if (nrow(checked$rejected_log) > 0)
+    message(sprintf("%d listing(s) rejected by sanity checks — see log/rejected_listings.csv",
+                    nrow(checked$rejected_log)))
+  checked$valid
 }
 
 # ---- Cities -----------------------------------------------------------------
@@ -466,8 +569,9 @@ update <- function(type, city, runstats) {
 # ---- Main entry point -------------------------------------------------------
 
 update_database <- function() {
-  cities_sapo <- c("porto", "vila-nova-de-gaia", "lisboa", "albufeira", "loule",
-                   "portimao", "lagos", "lagoa", "faro")
+  cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos",
+                   "albufeira", "loule", "portimao", "lagos", "lagoa", "faro",
+                   "lisboa", "cascais", "sintra")
   runstats <- list(
     "date"               = Sys.Date(),
     "new_listings"       = 0,
@@ -483,6 +587,9 @@ update_database <- function() {
     runstats <- update("buy",  city, runstats)
     Sys.sleep(runif(1, 15, 30))
   }
+  con <- get_con()
+  on.exit(dbDisconnect(con))
+  mark_duplicates(con)
   print(paste0("new log data: ", runstats))
   old_log_data <- read.csv("log/scraper_log.csv")
   old_log_data <- rbind(old_log_data, runstats)
