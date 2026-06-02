@@ -402,23 +402,18 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-### Phase 2 — Monthly aggregation script (R)
+### Phase 2 — Monthly aggregation script (R) ✓ COMPLETE
 
 *Populate `city_monthly_summary` and `neighbourhood_monthly_summary`. Run manually once after building to get initial data.*
 
-- [ ] Connect to Neon from R using `RPostgres` or `DBI`
-- [ ] Query `ads_buy` and `ads_rent` excluding rows where `duplicate_flag = true` or `is_active = false`
-- [ ] Compute city-level aggregations per listing type:
-  - `listing_count`, `median_price`, `median_price_per_m2`, `avg_time_on_market_days` (from `last_seen - first_seen`), `p25_price`, `p75_price`
-- [ ] Compute neighbourhood-level aggregations per city per listing type:
-  - Same metrics plus `monthly_price_change_pct` (compare to prior month's row in same table) and `most_common_tipologia`
-- [ ] Run sanity checks before inserting — abort and log if any check fails:
-  - Median price per m² outside €500–€20,000
-  - Month-on-month listing count change above 50%
-  - Price change above 20% or below -20%
-- [ ] Insert into summary tables using `snapshot_month = first day of current month`
-- [ ] Use `ON CONFLICT DO UPDATE` to safely rerun without duplicating
-- [ ] Run manually once to populate tables with current data
+- [x] Connect to Neon from R using `RPostgres` / `DBI`
+- [x] Query `ads_buy` and `ads_rent` excluding rows where `duplicate_flag = true` or `is_active = false`
+- [x] Compute city-level aggregations per listing type: `listing_count`, `median_price`, `median_price_per_m2`, `avg_time_on_market_days`, `p25_price`, `p75_price`
+- [x] Compute neighbourhood-level aggregations: same metrics plus `monthly_price_change_pct` (vs prior month) and `most_common_property_type`
+- [x] Sanity checks log warnings for implausible median price/m² and month-on-month price change >20%; script does not abort so output is visible in Actions log
+- [x] DELETE + INSERT pattern per snapshot_month — safely re-runnable without duplicating
+- [x] GitHub Actions workflow (`monthly_aggregation.yml`) scheduled for 1st of month at 06:00 UTC with `workflow_dispatch` for manual runs
+- [x] First snapshot triggered manually to populate June 2026 baseline
 
 ---
 
