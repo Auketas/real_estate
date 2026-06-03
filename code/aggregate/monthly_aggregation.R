@@ -75,7 +75,9 @@ run_monthly_aggregation <- function() {
     mutate(snapshot_month = snapshot_month)
 
   bad_city <- filter(city_rows,
-    is.na(median_price_per_m2) | median_price_per_m2 < 500 | median_price_per_m2 > 20000)
+    is.na(median_price_per_m2) |
+    (listing_type == "buy"  & (median_price_per_m2 < 500  | median_price_per_m2 > 20000)) |
+    (listing_type == "rent" & (median_price_per_m2 < 3    | median_price_per_m2 > 100)))
   if (nrow(bad_city) > 0) {
     message("WARNING — implausible median price/m² in city rows:")
     print(bad_city[, c("city", "listing_type", "median_price_per_m2")])
@@ -94,6 +96,40 @@ run_monthly_aggregation <- function() {
       .groups = "drop"
     ) %>%
     mutate(snapshot_month = snapshot_month)
+
+  # ---- Neighbourhood threshold / city-level fallback ------------------------
+  MIN_NBHD_LISTINGS <- 10
+
+  nbhd_rows_filtered <- filter(nbhd_rows, listing_count >= MIN_NBHD_LISTINGS)
+
+  # City+type combos where every neighbourhood fell below the threshold
+  dropped_combos <- anti_join(
+    distinct(nbhd_rows,          city, listing_type),
+    distinct(nbhd_rows_filtered, city, listing_type),
+    by = c("city", "listing_type")
+  )
+
+  if (nrow(dropped_combos) > 0) {
+    message(nrow(dropped_combos), " city/type combo(s) had no neighbourhood meeting the ",
+            MIN_NBHD_LISTINGS, "-listing threshold — adding city-level fallback rows:")
+    print(dropped_combos)
+    fallback_rows <- ads %>%
+      filter(!is.na(price) & price > 0) %>%
+      inner_join(dropped_combos, by = c("city", "listing_type")) %>%
+      group_by(city, listing_type) %>%
+      summarise(
+        listing_count             = n(),
+        median_price              = median(price, na.rm = TRUE),
+        median_price_per_m2       = median(price_per_m2, na.rm = TRUE),
+        avg_time_on_market_days   = mean(days_on_market, na.rm = TRUE),
+        most_common_property_type = mode_val(tipologia),
+        .groups = "drop"
+      ) %>%
+      mutate(neighbourhood = city, snapshot_month = snapshot_month)
+    nbhd_rows <- bind_rows(nbhd_rows_filtered, fallback_rows)
+  } else {
+    nbhd_rows <- nbhd_rows_filtered
+  }
 
   # Attach prior-month price for monthly_price_change_pct
   prior_month <- as.Date(format(snapshot_month - 1, "%Y-%m-01"))
