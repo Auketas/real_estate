@@ -28,7 +28,8 @@ try_recover_price <- function(bad_price) {
     if (!is.na(p1) && !is.na(p2) &&
         p1 >= 10000 && p1 <= 50000000 &&
         p2 >= 10000 && p2 <= 50000000 &&
-        p1 < p2) {
+        p1 < p2 &&
+        p2 / p1 <= 2) {  # real listing ranges are tight; > 2x ratio is a bad split
       valid <- c(valid, list(c(p1, p2)))
     }
   }
@@ -76,8 +77,9 @@ clean_table <- function(con, table_name) {
   for (i in seq_len(nrow(bad))) {
     row <- bad[i, ]
     new_val <- if (row$action == "recovered") formatC(row$recovered_price, format = "f", digits = 0) else "NULL"
-    message(sprintf("  [%s] id=%-12s  %s -> %s%s",
+    message(sprintf("  [%s] %-8s id=%-12s  %s -> %s%s",
       toupper(row$action),
+      table_name,
       row$id,
       formatC(row$price, format = "f", digits = 0),
       new_val,
