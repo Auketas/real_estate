@@ -48,9 +48,18 @@ nulled_log <- data.frame(
 )
 
 # Example (delete these and replace with real rows from your log):
-# nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="12345678", orig_price=769000800000, stringsAsFactors=FALSE))
-# nulled_log <- rbind(nulled_log, data.frame(table_name="ads_rent", id="87654321", orig_price=200000250000, stringsAsFactors=FALSE))
-
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="01acb7bd-dd6e-11ef-8add-060000000054", orig_price=250000260000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="5388eea6-0a9f-11f1-8ef4-060000000058", orig_price=700000760000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="461679d1-1e58-11f1-b3d3-060000000057", orig_price=349000370000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="87e92b6d-d9b1-11f0-9e61-060000000056", orig_price=510000560000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="d727909c-23f0-11ef-8add-060000000054", orig_price=203000250000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="b59afdc7-3827-11f1-90a1-060000000056", orig_price=769000800000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="951faf63-625e-11f0-b3d3-060000000057", orig_price=650000700000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="12234d50-ace1-11ef-8add-060000000054", orig_price=235000250000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="62f13096-f784-11f0-8add-060000000054", orig_price=250000260000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="7b91f38e-f6fa-11f0-8add-060000000054", orig_price=249000260000, stringsAsFactors=FALSE))
+ nulled_log <- rbind(nulled_log, data.frame(table_name="ads_buy",  id="2f483248-421f-11f0-a463-060000000052", orig_price=489000500000, stringsAsFactors=FALSE))
+ 
 # ---------------------------------------------------------------------------
 
 run_recovery <- function() {
