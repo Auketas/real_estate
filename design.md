@@ -118,7 +118,7 @@ City-level analysis with neighbourhood granularity.
 
 **Controls (sidebar or top of page):**
 - City selector (Lisboa / Porto / Algarve)
-- Buy / Rent toggle
+- Buy / Rent toggle — **Rent is only available for Lisboa and Porto.** Algarve is buy-only; the rental market there is too thin on these portals to produce meaningful data. Hide the rent toggle when an Algarve city is selected and show a one-line note: "Rental data is not available for the Algarve — the long-term rental market in this region is listed primarily on other platforms."
 
 **Section 1: Neighbourhood choropleth map**
 - Coloured by median price per m² at neighbourhood level
@@ -133,16 +133,19 @@ The flagship paid feature.
 Inputs (use Streamlit widgets in a clean horizontal or two-column layout):
 - Neighbourhood (dropdown, populated by selected city)
 - Property type (T0 / T1 / T2 / T3 / T4 / T4+)
-- Size range in m² (slider)
-- Key features (multiselect: parking, garden, terrace, pool, new build)
+- Size in m² (slider)
+- Key features (toggles: parking, garden, terrace, new build) — **all optional**
+
+All feature inputs are optional. Users set only what they know or care about. Unspecified features are marginalized out: their expected contribution to price is computed using the feature's prevalence in the training data (`β × prevalence`), and their uncertainty adds to the prediction interval width (`β² × p × (1−p)` per unspecified binary feature). The result is that specifying more features narrows the confidence band; leaving features blank widens it honestly rather than silently assuming a value. This should be communicated to the user with a short line like "Add more details to narrow the estimate."
 
 Outputs:
 - Predicted price with confidence interval, displayed as a prominent metric with range shown below (e.g. "€385,000 — estimated range €340,000–€430,000")
+- Interval visibly widens as fewer features are specified — this is intentional and honest
 - "Up X% from last month" / "Down X% over 6 months" as delta indicators
 - Small bar or line chart showing predicted price for these specifications over available monthly history
 - Number of listings that informed the estimate, shown as a small caption for transparency
 
-Implementation note: predictions are served from a precomputed monthly coefficients table in Neon (see Database section). Apply coefficients to user inputs at query time. Do not run regression live.
+Implementation note: predictions are served from a precomputed monthly coefficients table in Neon (see Database section). Apply coefficients to user inputs at query time. Do not run regression live. Feature prevalences (needed for marginalization) are stored in `model_feature_stats` (see Database section).
 
 ---
 
@@ -162,7 +165,9 @@ Secondary page for investors. Renamed from "Rental Yield."
 - Simple table or bar chart
 
 **Section 3: Rental yield calculator**
-Same input structure as price calculator on Page 2, but outputs:
+Lisboa and Porto only — Algarve is excluded from rent analysis (see Data Coverage).
+
+Same input structure as price calculator on Page 2 — all feature inputs optional, same marginalization approach. Outputs:
 - Estimated buy price for specifications
 - Estimated monthly rent for same specifications
 - Gross yield percentage
@@ -231,6 +236,20 @@ CREATE TABLE model_coefficients (
     coefficient NUMERIC,
     std_error NUMERIC,
     created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**`model_feature_stats`**
+Stores the mean/prevalence of each feature used in the model. Required for marginalizing over unspecified inputs in the price calculator — when a user leaves a feature blank, the calculator uses `β × prevalence` as the expected contribution and `β² × p × (1−p)` as the variance contribution to the confidence interval.
+```sql
+CREATE TABLE model_feature_stats (
+    id SERIAL PRIMARY KEY,
+    snapshot_month DATE,
+    listing_type   VARCHAR(10),
+    city           VARCHAR(100),
+    variable_name  VARCHAR(100),   -- matches variable_name in model_coefficients
+    feature_mean   NUMERIC,        -- prevalence for binary features, mean for numeric
+    created_at     TIMESTAMP DEFAULT NOW()
 );
 ```
 
@@ -352,9 +371,11 @@ Once deduplication is in place, track price changes on the canonical deduplicate
 ## Data Coverage
 
 Cities currently scraped:
-- **Lisboa region:** Lisboa (add Cascais and Sintra to scraper)
-- **Porto region:** Porto, Vila Nova de Gaia (consider adding Matosinhos)
-- **Algarve:** Six largest cities already covered
+- **Lisboa region:** Lisboa, Cascais, Sintra
+- **Porto region:** Porto, Vila Nova de Gaia, Matosinhos
+- **Algarve:** Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão
+
+**Rental data coverage:** Lisboa and Porto regions only. The Algarve rental market is too thin on imovirtual and casa sapo (verified: ~4–55 active listings per city) to produce meaningful statistics or models. All rent-facing features — the rent toggle, rent regression models, and the rental yield calculator — are restricted to Lisboa and Porto. Algarve pages show buy data only.
 
 Do not expand beyond this for now. Each new city is ongoing scraper maintenance.
 
