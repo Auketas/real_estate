@@ -420,6 +420,7 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Fix concatenated price ranges: `parse_price_raw()` detects digit-hyphen-digit in raw HTML text and takes the lower bound before non-digit stripping. Logs corrected listing IDs to console.
 - [x] Add deduplication flag: `mark_duplicates()` runs after each full scrape. Uses lat/lon proximity (< 0.0001°, ~11m) + same `tipologia` + price within 5% across different platforms. Coordinate-based matching is more reliable than neighbourhood string matching. `duplicate_flag BOOLEAN DEFAULT false` column must exist on `ads_buy` and `ads_rent` (add via Neon console).
 - [x] Fix imovirtual `read_ads` bug: was selecting only `id, price` so `is_active` filter on `inactive_ids` silently returned zero IDs — no listings were ever marked inactive. Fixed to select `is_active` and filter by `platform = 'imovirtual'`.
+- [x] Add rent price ceiling to ingestion sanity checks: rent listings with `price > €10,000` rejected as `rent_price_above_10000_likely_buy`. Plugs a historical bug where ~8,200 buy listings accumulated in `ads_rent` (April 2026). One-time cleanup scripts (`clean_price_artefacts`, `clean_rent_contamination`) removed the historical contamination.
 
 ---
 
@@ -438,34 +439,35 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-### Phase 3 — Regression model script (R)
+### Phase 3 — Regression model script (R) ✓ COMPLETE
 
-*Populate `model_coefficients` and `model_metadata`. Run manually once after building.*
+*Populate `model_coefficients`, `model_metadata`, and `model_feature_stats`. Run manually once after building.*
 
-- [ ] For each city and each listing type (buy / rent), train a hedonic OLS regression:
-  - Dependent variable: `log(price)` (log transform improves fit for property prices)
-  - Independent variables: `area`, `tipologia` (dummies), `neighbourhood` (dummies), `novo`, `jardim`, `garagem`, `terraco`, `varanda`, `energia` (dummies where not null), `andar` (where not null)
+- [x] For each city and each listing type (buy / rent), train a hedonic OLS regression:
+  - Dependent variable: `log(price)`
+  - Independent variables: `area`, `tipologia` (dummies), `neighbourhood` (dummies), `novo`, `jardim`, `garagem`, `terraco`, `varanda`, `energia` (dummies), `andar` (only if ≥ 50% coverage)
   - Exclude rows where `duplicate_flag = true` or `is_active = false`
-  - Exclude outliers beyond 3 standard deviations from city-level mean price per m²
-- [ ] Store each coefficient and its std error as a row in `model_coefficients`
-- [ ] Store model-level stats (n, R², residual std error) in `model_metadata`
-- [ ] Use `ON CONFLICT DO UPDATE` to safely rerun
-- [ ] Run manually once to populate with current data
-- [ ] Verify outputs look sensible — coefficients should have intuitive signs (larger area = higher price, garagem positive, etc.)
+  - Outlier filter: remove listings > 3 SD from city-level mean log(price/m²), applied only to listings with known area
+  - Missing values: binary features imputed as 0 (absent), numerics with column median; sparse factor levels (< 10 listings) collapsed to `"other_X"`
+  - Rent models restricted to Lisboa and Porto — Algarve skipped explicitly
+  - Cities with fewer than 50 active listings skipped and logged
+- [x] Store each coefficient and its std error as a row in `model_coefficients`
+- [x] Store model-level stats (n, R², residual std error) in `model_metadata`
+- [x] Store feature means/prevalences in `model_feature_stats` — required for marginalizing unspecified calculator inputs
+- [x] DELETE + INSERT pattern per `snapshot_month` — safely re-runnable
+- [x] R² and RSE printed per model in workflow log; R² < 0.3 flagged with warning
+- [ ] Trigger `regression_models` workflow to populate initial data
+- [ ] Verify outputs: coefficients should have intuitive signs (area positive, garagem positive, T3 > T2 > T1, etc.)
 
 ---
 
 ### Phase 4 — GitHub Actions workflow
 
-*Automate Phases 2 and 3 to run monthly.*
+*Combine Phases 2 and 3 into a single monthly workflow.*
 
-- [ ] Create new workflow YAML in `.github/workflows/`
-- [ ] Schedule: `cron: '0 6 1 * *'` (6am on 1st of each month)
-- [ ] Add `workflow_dispatch` trigger for manual runs
-- [ ] Workflow steps: checkout repo → set up R → install packages → run aggregation script → run regression script
-- [ ] Add Neon connection string as GitHub Actions secret if not already present
-- [ ] Test by triggering manually via `workflow_dispatch`
-- [ ] Verify tables are populated correctly after test run
+- [ ] Extend `monthly_aggregation.yml` to also run the regression script after aggregation
+- [ ] Both jobs already have `workflow_dispatch` — just merge the steps
+- [ ] Verify combined run completes cleanly end to end
 
 ---
 

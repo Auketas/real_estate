@@ -17,6 +17,8 @@ get_con <- function() {
 MIN_LISTINGS <- 50   # minimum active listings to train a model for a city+type
 MIN_CATEGORY <- 10   # minimum listings to keep a dummy category; smaller → "other"
 
+ALGARVE_CITIES <- c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
+
 # ---- Helpers ----------------------------------------------------------------
 
 # Impute binary feature: NA treated as absent (0)
@@ -71,6 +73,16 @@ create_tables_if_missing <- function(con) {
       r_squared          NUMERIC,
       residual_std_error NUMERIC,
       created_at         TIMESTAMP DEFAULT NOW()
+    )")
+  dbExecute(con, "
+    CREATE TABLE IF NOT EXISTS model_feature_stats (
+      id             SERIAL PRIMARY KEY,
+      snapshot_month DATE,
+      listing_type   VARCHAR(10),
+      city           VARCHAR(100),
+      variable_name  VARCHAR(100),
+      feature_mean   NUMERIC,
+      created_at     TIMESTAMP DEFAULT NOW()
     )")
 }
 
@@ -150,7 +162,22 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
     stringsAsFactors   = FALSE
   )
 
-  list(coefficients = coefs_df, metadata = meta_df)
+  # Feature means from the design matrix — used for marginalizing unspecified
+  # inputs in the price calculator (β × mean gives expected contribution;
+  # β² × p × (1−p) gives variance contribution for binary features)
+  dm         <- model.matrix(formula_obj, data = df)
+  feat_means <- colMeans(dm)
+  feat_means <- feat_means[names(feat_means) != "(Intercept)"]
+  feat_stats_df <- data.frame(
+    snapshot_month = snapshot_month,
+    listing_type   = listing_type,
+    city           = city,
+    variable_name  = names(feat_means),
+    feature_mean   = as.numeric(feat_means),
+    stringsAsFactors = FALSE
+  )
+
+  list(coefficients = coefs_df, metadata = meta_df, feature_stats = feat_stats_df)
 }
 
 # ---- Main -------------------------------------------------------------------
@@ -164,8 +191,9 @@ run_regression_models <- function() {
 
   create_tables_if_missing(con)
 
-  all_coefs <- list()
-  all_meta  <- list()
+  all_coefs      <- list()
+  all_meta       <- list()
+  all_feat_stats <- list()
 
   for (listing_type in c("buy", "rent")) {
     table_name <- ifelse(listing_type == "buy", "ads_buy", "ads_rent")
@@ -204,6 +232,11 @@ run_regression_models <- function() {
     for (city in sort(unique(ads_clean$city))) {
       df <- filter(ads_clean, city == !!city)
 
+      if (listing_type == "rent" && city %in% ALGARVE_CITIES) {
+        message(sprintf("  SKIP rent/%-20s — Algarve rent data too sparse", city))
+        next
+      }
+
       if (nrow(df) < MIN_LISTINGS) {
         message(sprintf("  SKIP %s/%-20s — %d listings (need %d)",
                         listing_type, city, nrow(df), MIN_LISTINGS))
@@ -212,8 +245,9 @@ run_regression_models <- function() {
 
       result <- fit_city_model(df, listing_type, city, snapshot_month)
       if (!is.null(result)) {
-        all_coefs <- c(all_coefs, list(result$coefficients))
-        all_meta  <- c(all_meta,  list(result$metadata))
+        all_coefs      <- c(all_coefs,      list(result$coefficients))
+        all_meta       <- c(all_meta,       list(result$metadata))
+        all_feat_stats <- c(all_feat_stats, list(result$feature_stats))
       }
     }
   }
@@ -223,17 +257,20 @@ run_regression_models <- function() {
     return(invisible(NULL))
   }
 
-  coefs_df <- bind_rows(all_coefs)
-  meta_df  <- bind_rows(all_meta)
+  coefs_df      <- bind_rows(all_coefs)
+  meta_df       <- bind_rows(all_meta)
+  feat_stats_df <- bind_rows(all_feat_stats)
 
-  dbExecute(con, sprintf("DELETE FROM model_coefficients WHERE snapshot_month = '%s'", snapshot_month))
-  dbExecute(con, sprintf("DELETE FROM model_metadata     WHERE snapshot_month = '%s'", snapshot_month))
+  dbExecute(con, sprintf("DELETE FROM model_coefficients  WHERE snapshot_month = '%s'", snapshot_month))
+  dbExecute(con, sprintf("DELETE FROM model_metadata      WHERE snapshot_month = '%s'", snapshot_month))
+  dbExecute(con, sprintf("DELETE FROM model_feature_stats WHERE snapshot_month = '%s'", snapshot_month))
 
-  dbWriteTable(con, "model_coefficients", coefs_df, append = TRUE, row.names = FALSE)
-  dbWriteTable(con, "model_metadata",     meta_df,  append = TRUE, row.names = FALSE)
+  dbWriteTable(con, "model_coefficients",  coefs_df,      append = TRUE, row.names = FALSE)
+  dbWriteTable(con, "model_metadata",      meta_df,       append = TRUE, row.names = FALSE)
+  dbWriteTable(con, "model_feature_stats", feat_stats_df, append = TRUE, row.names = FALSE)
 
   message(sprintf(
-    "\n=== Done — %d models, %d coefficients written for %s ===",
-    nrow(meta_df), nrow(coefs_df), snapshot_month
+    "\n=== Done — %d models, %d coefficients, %d feature stats written for %s ===",
+    nrow(meta_df), nrow(coefs_df), nrow(feat_stats_df), snapshot_month
   ))
 }
