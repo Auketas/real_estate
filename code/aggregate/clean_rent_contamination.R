@@ -69,7 +69,16 @@ run_clean_rent_contamination <- function() {
     message(sprintf("  Moved %d rows to ads_buy", nrow(to_move)))
   }
 
-  # 4. Delete all contaminated rows from ads_rent
+  # 4. Remove referencing rows in price_changes_rent first (FK constraint)
+  n_pc_deleted <- dbExecute(con, sprintf(
+    "DELETE FROM price_changes_rent
+     WHERE id IN (SELECT id FROM ads_rent WHERE price > %d)",
+    PRICE_THRESHOLD
+  ))
+  if (n_pc_deleted > 0)
+    message(sprintf("Deleted %d rows from price_changes_rent (FK cleanup)", n_pc_deleted))
+
+  # 5. Delete all contaminated rows from ads_rent
   n_deleted <- dbExecute(con, sprintf(
     "DELETE FROM ads_rent WHERE price > %d", PRICE_THRESHOLD
   ))
