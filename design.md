@@ -432,14 +432,15 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Query `ads_buy` and `ads_rent` excluding rows where `duplicate_flag = true` or `is_active = false`
 - [x] Compute city-level aggregations per listing type: `listing_count`, `median_price`, `median_price_per_m2`, `avg_time_on_market_days`, `p25_price`, `p75_price`
 - [x] Compute neighbourhood-level aggregations: same metrics plus `monthly_price_change_pct` (vs prior month) and `most_common_property_type`
-- [x] Sanity checks log warnings for implausible median price/m² and month-on-month price change >20%; script does not abort so output is visible in Actions log
+- [x] Sanity checks log warnings for implausible median price/m² and month-on-month price change >20%; thresholds are split by listing type (buy: €500–€20,000/m²; rent: €3–€100/m²); script does not abort
+- [x] Neighbourhood threshold: rows with fewer than 10 listings per neighbourhood are dropped; cities where all neighbourhoods fall below the threshold get a single city-level fallback row (`neighbourhood = city`) so every city retains at least one data point
 - [x] DELETE + INSERT pattern per snapshot_month — safely re-runnable without duplicating
 - [x] GitHub Actions workflow (`monthly_aggregation.yml`) scheduled for 1st of month at 06:00 UTC with `workflow_dispatch` for manual runs
 - [x] First snapshot triggered manually to populate June 2026 baseline
 
 ---
 
-### Phase 3 — Regression model script (R) ✓ COMPLETE
+### Phase 3 — Regression model script (R) ✓ SCRIPT COMPLETE — pending first run and verification
 
 *Populate `model_coefficients`, `model_metadata`, and `model_feature_stats`. Run manually once after building.*
 
@@ -520,16 +521,18 @@ Work through these phases sequentially. Complete and verify each phase before st
 ### Phase 8 — Price calculators
 
 - [ ] Build buy price calculator (Page 2):
-  - [ ] Inputs: neighbourhood, tipologia, area slider, jardim/garagem/terraco/varanda checkboxes, novo toggle
-  - [ ] Output: predicted price (remember to exponentiate — model is trained on log price), confidence interval from residual std error
-  - [ ] Monthly trend: time series of predicted price for same inputs across stored monthly coefficients
+  - [ ] Inputs: neighbourhood, tipologia, area slider, jardim/garagem/terraco/varanda toggles, novo toggle — **all optional**
+  - [ ] Unspecified features are marginalized out using `model_feature_stats` prevalences: expected price contribution = `β × mean`; variance contribution = `β² × p × (1−p)` per unspecified binary feature. More inputs specified → narrower interval.
+  - [ ] Output: predicted price (exponentiate — model trained on log price), confidence interval; show interval widening visually as features are left blank
+  - [ ] Short label: "Add more details to narrow the estimate"
+  - [ ] Monthly trend: time series of predicted price for the same inputs across stored monthly coefficients
   - [ ] Show listing count that informed the estimate
   - [ ] Show % change vs prior month and vs 6 months ago
-- [ ] Build rental yield calculator (Page 3):
-  - [ ] Same inputs as buy calculator
+- [ ] Build rental yield calculator (Page 3) — Lisboa and Porto only:
+  - [ ] Same optional-input structure as buy calculator
   - [ ] Output: estimated buy price, estimated monthly rent, gross yield %
   - [ ] Show trend in yield over available monthly history
-  - [ ] Display caveat: gross yield only, net yield will be lower
+  - [ ] Display caveat: gross yield only, net yield will be lower after taxes, vacancy, maintenance
 
 ---
 
