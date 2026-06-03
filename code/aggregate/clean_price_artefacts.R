@@ -73,7 +73,17 @@ clean_table <- function(con, table_name) {
     ))
   }
 
-  print(bad[order(bad$action), c("id", "price", "recovered_price", "action", "is_active")])
+  for (i in seq_len(nrow(bad))) {
+    row <- bad[i, ]
+    new_val <- if (row$action == "recovered") formatC(row$recovered_price, format = "f", digits = 0) else "NULL"
+    message(sprintf("  [%s] id=%-12s  %s -> %s%s",
+      toupper(row$action),
+      row$id,
+      formatC(row$price, format = "f", digits = 0),
+      new_val,
+      if (row$is_active == 1) "  (active)" else ""
+    ))
+  }
   invisible(mutate(bad, table = table_name))
 }
 
@@ -95,13 +105,15 @@ run_price_cleanup <- function() {
     sum(combined$is_active == 1 & combined$action == "recovered", na.rm = TRUE) +
     sum(combined$is_active == 1 & combined$action == "nulled",    na.rm = TRUE)
 
-  message(sprintf(
-    "\nDone — %d total rows fixed (%d recovered, %d nulled). %d were active listings.",
-    nrow(combined),
-    sum(combined$action == "recovered"),
-    sum(combined$action == "nulled"),
-    active_affected
-  ))
+  n_recovered <- sum(combined$action == "recovered")
+  n_nulled    <- sum(combined$action == "nulled")
+  message(sprintf(paste0(
+    "\n=== Summary ===\n",
+    "  Prices recovered (lower bound restored): %d\n",
+    "  Prices nulled    (ambiguous, unresolvable): %d\n",
+    "  Total rows fixed: %d\n",
+    "  Active listings affected: %d"
+  ), n_recovered, n_nulled, nrow(combined), active_affected))
   if (active_affected > 0)
     message("Rerun monthly aggregation to reflect corrected prices.")
   else
