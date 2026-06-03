@@ -50,7 +50,7 @@ write_rejection_log <- function(entries) {
   }
 }
 
-validate_new_listings <- function(df, platform) {
+validate_new_listings <- function(df, platform, type) {
   keep    <- rep(TRUE, nrow(df))
   reasons <- rep(NA_character_, nrow(df))
 
@@ -61,8 +61,9 @@ validate_new_listings <- function(df, platform) {
     r <- character(0)
     p <- price_num[i]; a <- area_num[i]
 
-    if (is.na(p) || p <= 0)   r <- c(r, "price_zero_or_negative")
-    else if (p > 50000000)    r <- c(r, "price_above_50M")
+    if (is.na(p) || p <= 0)          r <- c(r, "price_zero_or_negative")
+    else if (p > 50000000)           r <- c(r, "price_above_50M")
+    else if (type == "rent" && p > 10000) r <- c(r, "rent_price_above_10000_likely_buy")
 
     if (!is.na(a)) {
       if (a <= 0)             r <- c(r, "area_zero_or_negative")
@@ -389,7 +390,7 @@ convert_coordinates_to_neighbourhood_sapo <- function(lon, lat) {
 
 # ---- Batch new-ads scraper --------------------------------------------------
 
-scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
+scrape_new_ads_sapo <- function(new_listings, date, cityname, type, maxads = 4000) {
   nads         <- min(maxads, nrow(new_listings))
   new_listings <- new_listings[seq_len(nads), ]
   newdata      <- matrix(nrow = nads, ncol = 16)
@@ -418,7 +419,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, maxads = 4000) {
   newdata$city       <- cityname
   newdata$platform   <- "casa_sapo"
   newdata <- newdata[!is.na(newdata[, 1]), ]
-  checked <- validate_new_listings(newdata, "casa_sapo")
+  checked <- validate_new_listings(newdata, "casa_sapo", type)
   write_rejection_log(checked$rejected_log)
   if (nrow(checked$rejected_log) > 0)
     message(sprintf("%d listing(s) rejected by sanity checks — see log/rejected_listings.csv",
@@ -503,7 +504,7 @@ update <- function(type, city, runstats) {
 
   # Phase 3: slow per-ad scraping (no connection held)
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
-  new_data     <- if (nrow(new_listings) > 0) scrape_new_ads_sapo(new_listings, today, city) else NULL
+  new_data     <- if (nrow(new_listings) > 0) scrape_new_ads_sapo(new_listings, today, city, type) else NULL
 
   # Phase 4: fresh connection for all writes
   con <- get_con()
