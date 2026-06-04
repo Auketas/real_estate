@@ -218,6 +218,7 @@ run_regression_models <- function() {
     ads$price_num <- suppressWarnings(as.numeric(ads$price))
     ads$area_num  <- suppressWarnings(as.numeric(gsub("[^0-9.]", "", as.character(ads$area))))
     ads$andar_num <- parse_andar(ads$andar)
+    ads$city[ads$city == "matosinhos"] <- "porto"
 
     # Remove price outliers: > 3 SD from city-level mean log(price/m²)
     # Only applied to listings where area is known — area-missing listings are kept

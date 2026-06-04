@@ -52,6 +52,7 @@ run_monthly_aggregation <- function() {
     pull_active_listings(con, "ads_buy",  "buy"),
     pull_active_listings(con, "ads_rent", "rent")
   )
+  ads$city[ads$city == "matosinhos"] <- "porto"
   message(nrow(ads), " active listings loaded")
 
   # Precompute price_per_m2 — used in both summaries
