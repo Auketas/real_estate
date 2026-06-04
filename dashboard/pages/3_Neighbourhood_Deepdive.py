@@ -1,56 +1,196 @@
+import os
+import json
+import numpy as np
+import pandas as pd
 import streamlit as st
 import plotly.express as px
 import utils.charts
 from utils.auth import require_auth
-from utils.db import get_neighbourhood_summary, CITY_LABELS
+from utils.db import (get_region_neighbourhood_summary, get_neighbourhood_summary,
+                      get_city_summary, CITY_LABELS)
 from utils.sidebar import render_currency_selector
 
 require_auth()
 
 rate, symbol, fmt_price = render_currency_selector()
 
+STATIC = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+
+@st.cache_data
+def _load_json(filename):
+    with open(os.path.join(STATIC, filename), encoding="utf-8") as f:
+        return json.load(f)
+
+LOOKUP = _load_json("neighbourhood_lookup.json")
+
+ALGARVE_CITIES = ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
+
+REGIONS = {
+    "Porto":   dict(cities=("porto", "vila-nova-de-gaia"),
+                    geojson="porto_region.geojson",  featureidkey="properties.NAME_3",
+                    lat=41.16, lon=-8.62, zoom=11),
+    "Lisboa":  dict(cities=("lisboa", "cascais", "sintra"),
+                    geojson="lisboa_region.geojson", featureidkey="properties.NAME_3",
+                    lat=38.72, lon=-9.14, zoom=10),
+    "Algarve": dict(cities=ALGARVE_CITIES,
+                    geojson="algarve.geojson",       featureidkey="properties.NAME_2",
+                    lat=37.13, lon=-8.25, zoom=8),
+}
+
+COLOR_SCALE = ["#F5E6C8", "#C4603A"]
+
+
+def weighted_avg(group, val_col):
+    w = group["listing_count"].fillna(0)
+    v = group[val_col]
+    mask = (w > 0) & v.notna()
+    if mask.sum() == 0:
+        return np.nan
+    return np.average(v[mask], weights=w[mask])
+
+
 st.title("Neighbourhood Deep-dive")
 
-CITIES = list(CITY_LABELS.keys())
-
 col1, col2 = st.columns(2)
-city     = col1.selectbox("City", CITIES, format_func=lambda c: CITY_LABELS[c])
-type_key = col2.radio("", ["buy", "rent"], horizontal=True)
+region = col1.selectbox("Region", list(REGIONS.keys()))
+cfg    = REGIONS[region]
 
-df = get_neighbourhood_summary(city=city, listing_type=type_key)
+is_algarve = (region == "Algarve")
+if is_algarve:
+    col2.caption(
+        "Rental data is not available for the Algarve — the long-term rental "
+        "market in this region is listed primarily on other platforms."
+    )
+    type_key = "buy"
+else:
+    type_key = col2.radio("", ["buy", "rent"], horizontal=True)
 
-if df.empty:
-    st.warning("No neighbourhood data available for this city and listing type.")
-    st.stop()
+geojson = _load_json(cfg["geojson"])
 
-city_label = CITY_LABELS[city]
+# ── Algarve: city-level choropleth + neighbourhood bar chart ─────────────────
+if is_algarve:
+    df_city = get_city_summary(listing_type="buy")
+    df_city = df_city[df_city["city"].isin(ALGARVE_CITIES)].copy()
+    df_city["ppm2_display"]  = df_city["median_price_per_m2"] * rate
+    df_city["price_display"] = df_city["median_price"]        * rate
 
-df["price_display"] = df["median_price"]        * rate
-df["ppm2_display"]  = df["median_price_per_m2"] * rate
-df_sorted = df.sort_values("price_display", ascending=False)
+    fig = px.choropleth_mapbox(
+        df_city, geojson=geojson,
+        locations="city_label", featureidkey="properties.NAME_2",
+        color="ppm2_display",
+        color_continuous_scale=COLOR_SCALE,
+        mapbox_style="carto-positron",
+        zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
+        opacity=0.75,
+        hover_data={
+            "city_label":    True,
+            "ppm2_display":  True,
+            "price_display": True,
+            "listing_count": True,
+        },
+        labels={
+            "city_label":    "City",
+            "ppm2_display":  f"Median {symbol}/m²",
+            "price_display": f"Median price ({symbol})",
+            "listing_count": "Listings",
+        },
+    )
+    fig.update_layout(
+        coloraxis_colorbar=dict(title=f"{symbol}/m²"),
+        margin=dict(l=0, r=0, t=0, b=0),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# ---- Median price per neighbourhood
-st.subheader(f"Median price per neighbourhood — {city_label}")
-fig = px.bar(
-    df_sorted, x="neighbourhood", y="price_display",
-    hover_data={"listing_count": True, "ppm2_display": True, "avg_time_on_market_days": True,
-                "price_display": False},
-    labels={
-        "price_display":          f"Median price ({symbol})",
-        "ppm2_display":           f"Median {symbol}/m²",
-        "avg_time_on_market_days": "Avg. days on market",
-        "listing_count":          "Listings",
-        "neighbourhood":          "",
-    },
-)
-fig.update_xaxes(tickangle=45)
-st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Neighbourhood breakdown")
+    algarve_city = st.selectbox(
+        "Select city", list(ALGARVE_CITIES), format_func=lambda c: CITY_LABELS[c]
+    )
+    df_nbhd = get_neighbourhood_summary(city=algarve_city, listing_type="buy")
+    if df_nbhd.empty:
+        st.info("No neighbourhood data available for this city.")
+    else:
+        df_nbhd["ppm2_display"] = df_nbhd["median_price_per_m2"] * rate
+        fig_bar = px.bar(
+            df_nbhd.sort_values("ppm2_display", ascending=False),
+            x="neighbourhood", y="ppm2_display",
+            hover_data={"listing_count": True},
+            labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": "",
+                    "listing_count": "Listings"},
+        )
+        fig_bar.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
-# ---- Price per m²
-st.subheader(f"Median price per m² ({symbol})")
-fig2 = px.bar(
-    df_sorted, x="neighbourhood", y="ppm2_display",
-    labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": ""},
-)
-fig2.update_xaxes(tickangle=45)
-st.plotly_chart(fig2, use_container_width=True)
+# ── Porto / Lisboa: neighbourhood choropleth ─────────────────────────────────
+else:
+    df_nbhd = get_region_neighbourhood_summary(cfg["cities"], listing_type=type_key)
+
+    if df_nbhd.empty:
+        st.warning("No neighbourhood data available.")
+        st.stop()
+
+    # Map DB neighbourhood names to GeoJSON feature names
+    df_nbhd["feature_name"] = df_nbhd["neighbourhood"].map(LOOKUP)
+    df_matched = df_nbhd.dropna(subset=["feature_name"]).copy()
+
+    # Aggregate: multiple DB neighbourhoods may map to the same parish polygon
+    df_choro = (
+        df_matched.groupby("feature_name")
+        .apply(lambda x: pd.Series({
+            "median_price_per_m2": weighted_avg(x, "median_price_per_m2"),
+            "median_price":        weighted_avg(x, "median_price"),
+            "avg_time_on_market":  weighted_avg(x, "avg_time_on_market_days"),
+            "listing_count":       int(x["listing_count"].sum()),
+        }))
+        .reset_index()
+    )
+    df_choro["ppm2_display"]  = df_choro["median_price_per_m2"] * rate
+    df_choro["price_display"] = df_choro["median_price"]        * rate
+
+    matched_pct = len(df_matched) / max(len(df_nbhd), 1) * 100
+
+    fig = px.choropleth_mapbox(
+        df_choro, geojson=geojson,
+        locations="feature_name", featureidkey=cfg["featureidkey"],
+        color="ppm2_display",
+        color_continuous_scale=COLOR_SCALE,
+        mapbox_style="carto-positron",
+        zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
+        opacity=0.75,
+        hover_data={
+            "feature_name":   True,
+            "ppm2_display":   True,
+            "price_display":  True,
+            "listing_count":  True,
+            "avg_time_on_market": ":.0f",
+        },
+        labels={
+            "feature_name":      "Neighbourhood",
+            "ppm2_display":      f"Median {symbol}/m²",
+            "price_display":     f"Median price ({symbol})",
+            "listing_count":     "Listings",
+            "avg_time_on_market":"Avg. days on market",
+        },
+    )
+    fig.update_layout(
+        coloraxis_colorbar=dict(title=f"{symbol}/m²"),
+        margin=dict(l=0, r=0, t=0, b=0),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"{matched_pct:.0f}% of neighbourhoods matched to map polygons. "
+        "Unmatched neighbourhoods appear in the bar chart below only."
+    )
+
+    # Secondary bar chart — all neighbourhoods including unmatched
+    st.subheader(f"Price per m² by neighbourhood — {region}")
+    df_nbhd["ppm2_display"] = df_nbhd["median_price_per_m2"] * rate
+    fig_bar = px.bar(
+        df_nbhd.sort_values("ppm2_display", ascending=False),
+        x="neighbourhood", y="ppm2_display",
+        hover_data={"listing_count": True, "avg_time_on_market_days": ":.0f"},
+        labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": "",
+                "listing_count": "Listings",
+                "avg_time_on_market_days": "Avg. days on market"},
+    )
+    fig_bar.update_xaxes(tickangle=45)
+    st.plotly_chart(fig_bar, use_container_width=True)

@@ -87,6 +87,24 @@ def get_city_summary(listing_type: str = None) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
+def get_region_neighbourhood_summary(cities: tuple, listing_type: str = None) -> pd.DataFrame:
+    """Load neighbourhood summary for multiple cities. Pass cities as a tuple."""
+    city_params = {f"c{i}": city for i, city in enumerate(cities)}
+    placeholders = ", ".join(f":c{i}" for i in range(len(cities)))
+    conditions = [
+        "snapshot_month = (SELECT MAX(snapshot_month) FROM neighbourhood_monthly_summary)",
+        f"city IN ({placeholders})",
+    ]
+    params = dict(city_params)
+    if listing_type:
+        conditions.append("listing_type = :listing_type")
+        params["listing_type"] = listing_type
+    sql = text("SELECT * FROM neighbourhood_monthly_summary WHERE " + " AND ".join(conditions))
+    with get_engine().connect() as conn:
+        return pd.read_sql(sql, conn, params=params)
+
+
+@st.cache_data(ttl=3600)
 def get_neighbourhood_summary(city: str, listing_type: str = None) -> pd.DataFrame:
     conditions = [
         "snapshot_month = (SELECT MAX(snapshot_month) FROM neighbourhood_monthly_summary)",
