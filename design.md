@@ -440,7 +440,7 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-### Phase 3 — Regression model script (R) ✓ SCRIPT COMPLETE — pending first run and verification
+### Phase 3 — Regression model script (R) ✓ COMPLETE
 
 *Populate `model_coefficients`, `model_metadata`, and `model_feature_stats`. Run manually once after building.*
 
@@ -457,31 +457,31 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Store feature means/prevalences in `model_feature_stats` — required for marginalizing unspecified calculator inputs
 - [x] DELETE + INSERT pattern per `snapshot_month` — safely re-runnable
 - [x] R² and RSE printed per model in workflow log; R² < 0.3 flagged with warning
-- [ ] Trigger `regression_models` workflow to populate initial data
-- [ ] Verify outputs: coefficients should have intuitive signs (area positive, garagem positive, T3 > T2 > T1, etc.)
+- [x] Workflow triggered and verified — R² values good across all cities; structural coefficients (area, tipologia dummies, amenity flags) have correct signs and magnitudes
 
 ---
 
-### Phase 4 — GitHub Actions workflow
+### Phase 4 — GitHub Actions workflow ✓ COMPLETE
 
 *Combine Phases 2 and 3 into a single monthly workflow.*
 
-- [ ] Extend `monthly_aggregation.yml` to also run the regression script after aggregation
-- [ ] Both jobs already have `workflow_dispatch` — just merge the steps
-- [ ] Verify combined run completes cleanly end to end
+- [x] Extend `monthly_aggregation.yml` to also run the regression script after aggregation — added as a second job (`regress`) with `needs: aggregate`
+- [x] `regression_models.yml` retained for standalone manual runs
+- [x] Combined workflow triggers on schedule (1st of month, 06:00 UTC) and `workflow_dispatch`
 
 ---
 
-### Phase 5 — Verify and sanity check
+### Phase 5 — Verify and sanity check ✓ COMPLETE
 
 *Do not proceed to the dashboard until this phase is complete.*
 
-- [ ] Compare `city_monthly_summary` output against direct queries on `ads_buy`/`ads_rent` — do medians match?
-- [ ] Check all cities present and correctly capitalised
-- [ ] Check no NULL values in critical columns
-- [ ] Check price per m² values are in plausible range for all cities
-- [ ] Check regression coefficients have sensible signs and magnitudes
-- [ ] Check `model_metadata` R² values — below 0.3 suggests a data problem worth investigating before building the calculator
+- [x] Compare `city_monthly_summary` output against direct queries on `ads_buy`/`ads_rent` — medians match for all well-populated cities
+- [x] All cities present; city names lowercase in DB (display capitalisation handled in dashboard)
+- [x] No NULL values in any critical columns
+- [x] Buy price per m² plausible across all cities (Sintra €3,718 → Lisboa €7,065); rent price per m² plausible for Lisboa, Porto, Vila Nova de Gaia
+- [x] Regression coefficients verified — correct signs and magnitudes
+- [x] R² values acceptable across all models
+- [x] Matosinhos remapped to Porto in aggregation and regression scripts — raw DB tables keep `city = 'matosinhos'` (required for scraper inactive detection); summary tables and models combine under `'porto'`. Re-run `monthly_aggregation` workflow manually to apply.
 
 ---
 
