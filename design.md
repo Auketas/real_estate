@@ -514,12 +514,14 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Add currency toggle to sidebar via `utils/sidebar.py` — reads ECB rates, returns `(rate, symbol, fmt_price)` used by all pages to convert every price amount displayed
 - [x] All four pages updated: import charts template, call `render_currency_selector()`, multiply price columns by rate before charting, use symbol in axis labels and table headers
 
-#### 7c — Explorer page (Page 1, free)
-- [ ] Hero metrics row: Total active listings (buy toggle), Median price per m², Cities covered, Data freshness ("Updated [date]")
-- [ ] Country choropleth map: Plotly `scatter_geo` or `choropleth_mapbox` with city centroids sized/coloured by median price per m²; cream → terracotta scale; hover shows city name, median price, median €/m², avg days on market, listing count. Use `carto-positron` base map.
-- [ ] City comparison table: one row per city, columns — City, Listings, Median price, Median €/m², Avg days on market, Sunshine hrs/yr, Avg summer temp, Avg winter temp. Climate columns sourced from a static dict in the page (not scraped). Caption explaining climate data source.
-- [ ] Market pulse: 2–3 auto-generated sentences from the data (most expensive city, listing count leader, longest time on market). Template-driven, no LLM needed.
-- [ ] Rename page file to `1_Explorer.py`
+#### 7c — Explorer page (Page 1, free) ✓ COMPLETE
+
+- [x] Hero metrics row: active listings, median price/m², cities covered, data freshness ("Updated [Month Year]")
+- [x] Portugal overview map: `scatter_mapbox` with city centroids coloured by median price/m² (cream → terracotta), sized by √listing_count, hover shows city stats. `carto-positron` base map, centred on Portugal.
+- [x] City comparison table: all cities with climate columns (sunshine hrs/yr, avg summer °C, avg winter °C) sourced from static IPMA/Wikipedia dict in the page. Caption explains source.
+- [x] Price per m² and time-on-market bar charts (absorbed from City Comparison page)
+- [x] `1_Market_Overview.py` and `2_City_Comparison.py` removed; replaced by `1_Explorer.py`
+- [ ] **Market pulse** (deferred): 2–3 auto-generated plain-English sentences summarising the data — most expensive city, listing count leader, longest time on market. Template-driven, no LLM. Add in a later pass once the page is visually verified.
 
 #### 7d — Neighbourhood Deep-Dive page (Page 2, paid) ✓ COMPLETE
 
