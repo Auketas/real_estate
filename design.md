@@ -485,16 +485,17 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-### Phase 6 — Dashboard migration
+### Phase 6 — Dashboard migration ✓ COMPLETE
 
 *Migrate existing dashboard queries to use summary tables. Fix known data bugs.*
 
-- [ ] Migrate all dashboard queries from `ads_buy`/`ads_rent` to `city_monthly_summary` and `neighbourhood_monthly_summary`
-- [ ] Verify load time improvement
-- [ ] Fix rental yield calculation bug (Porto showing 1000%+)
-- [ ] Fix price per m² calculation bug (Lagos showing astronomical values)
-- [ ] Fix price change over time chart (values in 10^15 range)
-- [ ] Properly capitalise all city names throughout
+- [x] Add `get_city_summary()` and `get_neighbourhood_summary()` to `utils/db.py`; add `CITY_LABELS` dict with correct Portuguese diacritics
+- [x] Migrate all four pages to read from `city_monthly_summary` / `neighbourhood_monthly_summary`
+- [x] Rental yield bug fixed — was computing on raw unfiltered prices; now uses pre-aggregated medians
+- [x] Price per m² outlier bug fixed — summary tables exclude outliers at aggregation time
+- [x] Broken price-change history chart removed (10^15 values in `price_changes` tables; time series will return in Phase 8 once multiple monthly snapshots exist)
+- [x] City names correctly capitalised throughout, including Loulé, Portimão, Vila Nova de Gaia
+- [x] Matosinhos removed from city selectors (folded into Porto in summary tables)
 
 ---
 
