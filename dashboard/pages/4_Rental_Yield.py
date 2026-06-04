@@ -1,65 +1,42 @@
 import streamlit as st
 import plotly.express as px
-import pandas as pd
 from utils.auth import require_auth
-from utils.db import get_listings
+from utils.db import get_city_summary
 
 require_auth()
 
 st.title("Rental Yield")
-st.caption("Gross yield = (annual rent / buy price) × 100. Data from live listings.")
+st.caption("Gross yield = annualised median asking rent / median asking buy price. Asking prices only — not transaction data.")
 
-cities = ["porto", "vila-nova-de-gaia", "matosinhos",
-          "lisboa", "cascais", "sintra",
-          "albufeira", "loule", "portimao", "lagos", "lagoa", "faro"]
+buy  = get_city_summary(listing_type="buy") [["city", "city_label", "median_price", "listing_count"]]
+rent = get_city_summary(listing_type="rent")[["city", "median_price"]].rename(columns={"median_price": "median_rent"})
 
-# ---- Load both buy and rent listings ----------------------------------------
-buy  = get_listings(type="buy")[["city", "neighbourhood", "price", "area", "tipologia"]]
-rent = get_listings(type="rent")[["city", "neighbourhood", "price", "area", "tipologia"]]
+merged = buy.merge(rent, on="city")
+merged["gross_yield"]  = (merged["median_rent"] * 12) / merged["median_price"] * 100
+merged["price_to_rent"] = merged["median_price"] / (merged["median_rent"] * 12)
+merged = merged[merged["gross_yield"].between(0, 20)]
 
-buy.rename(columns={"price": "buy_price"}, inplace=True)
-rent.rename(columns={"price": "rent_price"}, inplace=True)
-
-# Median buy and rent price per city × tipologia
-buy_agg  = buy.groupby(["city", "tipologia"])["buy_price"].median().reset_index()
-rent_agg = rent.groupby(["city", "tipologia"])["rent_price"].median().reset_index()
-
-merged = buy_agg.merge(rent_agg, on=["city", "tipologia"])
-merged["gross_yield"] = (merged["rent_price"] * 12) / merged["buy_price"] * 100
-merged = merged.dropna(subset=["gross_yield"])
-merged = merged[merged["tipologia"].notna()]
-
-# ---- City-level yield -------------------------------------------------------
+# ---- Gross yield by city
 st.subheader("Gross yield by city")
-city_yield = (
-    merged.groupby("city")["gross_yield"]
-    .mean()
-    .reset_index()
-    .sort_values("gross_yield", ascending=False)
+fig = px.bar(
+    merged.sort_values("gross_yield"),
+    x="gross_yield", y="city_label", orientation="h",
+    color="gross_yield",
+    color_continuous_scale=[(0, "#d73027"), (0.3, "#fee08b"), (0.5, "#1a9850"), (1, "#1a9850")],
+    range_color=[0, 10],
+    labels={"gross_yield": "Gross yield (%)", "city_label": ""},
 )
-fig = px.bar(city_yield, x="city", y="gross_yield",
-             labels={"gross_yield": "Avg. gross yield (%)", "city": ""},
-             color="gross_yield", color_continuous_scale="RdYlGn")
-fig.add_hline(y=5, line_dash="dash", line_color="grey",
+fig.add_vline(x=5, line_dash="dash", line_color="grey",
               annotation_text="5% benchmark", annotation_position="top right")
+fig.update_coloraxes(showscale=False)
 st.plotly_chart(fig, use_container_width=True)
 
-# ---- Yield by city × bedroom type ------------------------------------------
-st.subheader("Yield by city and apartment type")
-city_filter = st.selectbox("Filter to one city (or see all)", ["All"] + cities)
-df_plot = merged if city_filter == "All" else merged[merged["city"] == city_filter]
-
-fig2 = px.bar(df_plot.sort_values("gross_yield", ascending=False),
-              x="tipologia", y="gross_yield", color="city", barmode="group",
-              labels={"gross_yield": "Gross yield (%)", "tipologia": "Type", "city": "City"})
-st.plotly_chart(fig2, use_container_width=True)
-
-# ---- Raw table --------------------------------------------------------------
-with st.expander("Show data table"):
-    st.dataframe(
-        merged.sort_values("gross_yield", ascending=False)
-              .rename(columns={"buy_price": "Median buy (€)", "rent_price": "Median rent/mo (€)",
-                                "gross_yield": "Gross yield (%)", "tipologia": "Type",
-                                "city": "City"}),
-        use_container_width=True, hide_index=True
-    )
+# ---- Price-to-rent ratio
+st.subheader("Price-to-rent ratio by city")
+ptr = merged[["city_label", "price_to_rent", "median_price", "median_rent", "gross_yield"]].copy()
+ptr.columns = ["City", "Price-to-rent ratio", "Median buy price (€)", "Median monthly rent (€)", "Gross yield (%)"]
+ptr["Median buy price (€)"]    = ptr["Median buy price (€)"].map("{:,.0f}".format)
+ptr["Median monthly rent (€)"] = ptr["Median monthly rent (€)"].map("{:,.0f}".format)
+ptr["Gross yield (%)"]         = ptr["Gross yield (%)"].map("{:.1f}".format)
+ptr["Price-to-rent ratio"]     = ptr["Price-to-rent ratio"].map("{:.1f}".format)
+st.dataframe(ptr.sort_values("Gross yield (%)"), use_container_width=True, hide_index=True)

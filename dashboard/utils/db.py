@@ -2,6 +2,20 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 
+CITY_LABELS = {
+    "lisboa":            "Lisboa",
+    "porto":             "Porto",
+    "cascais":           "Cascais",
+    "sintra":            "Sintra",
+    "albufeira":         "Albufeira",
+    "faro":              "Faro",
+    "lagoa":             "Lagoa",
+    "lagos":             "Lagos",
+    "loule":             "Loulé",
+    "portimao":          "Portimão",
+    "vila-nova-de-gaia": "Vila Nova de Gaia",
+}
+
 
 @st.cache_resource
 def get_engine():
@@ -54,6 +68,35 @@ def get_price_history(type: str = "buy", city: str = None) -> pd.DataFrame:
         GROUP BY date, city
         ORDER BY date
     """)
+    with get_engine().connect() as conn:
+        return pd.read_sql(sql, conn, params=params)
+
+
+@st.cache_data(ttl=3600)
+def get_city_summary(listing_type: str = None) -> pd.DataFrame:
+    conditions = ["snapshot_month = (SELECT MAX(snapshot_month) FROM city_monthly_summary)"]
+    params = {}
+    if listing_type:
+        conditions.append("listing_type = :listing_type")
+        params["listing_type"] = listing_type
+    sql = text("SELECT * FROM city_monthly_summary WHERE " + " AND ".join(conditions))
+    with get_engine().connect() as conn:
+        df = pd.read_sql(sql, conn, params=params)
+    df["city_label"] = df["city"].map(CITY_LABELS).fillna(df["city"].str.title())
+    return df
+
+
+@st.cache_data(ttl=3600)
+def get_neighbourhood_summary(city: str, listing_type: str = None) -> pd.DataFrame:
+    conditions = [
+        "snapshot_month = (SELECT MAX(snapshot_month) FROM neighbourhood_monthly_summary)",
+        "city = :city",
+    ]
+    params = {"city": city}
+    if listing_type:
+        conditions.append("listing_type = :listing_type")
+        params["listing_type"] = listing_type
+    sql = text("SELECT * FROM neighbourhood_monthly_summary WHERE " + " AND ".join(conditions))
     with get_engine().connect() as conn:
         return pd.read_sql(sql, conn, params=params)
 
