@@ -504,31 +504,51 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 *Apply the new design language. See Visual Design Language section for colours, typography and chart style.*
 
-#### 7a — Theme and global styles
-- [ ] Add `.streamlit/config.toml` with base background (`#FAF7F2`), sidebar background (`#F0EBE3`), and primary accent (`#C4603A`)
-- [ ] Add global custom CSS in `app.py`: metric label style (small, uppercase, secondary colour), metric value style (large, primary colour), border/divider colour (`#E0D9D0`)
-- [ ] Define shared Plotly chart template in `utils/charts.py`: terracotta primary colour, minimal grey gridlines, no chart borders, subtitle style
+#### 7a — Theme and global styles ✓ COMPLETE
+- [x] Add `.streamlit/config.toml` with base background (`#FAF7F2`), sidebar background (`#F0EBE3`), and primary accent (`#C4603A`)
+- [x] Add global custom CSS in `app.py`: removed Expat Tools references, updated landing page copy
+- [x] Define shared Plotly chart template in `utils/charts.py`: terracotta primary colour, minimal grey gridlines, no chart borders
 
-#### 7b — Structural changes
-- [ ] Remove `5_Expat_Tools.py` — currency toggle moves to sidebar, climate data moves to Explorer table
-- [ ] Rename page files to match new navigation: Explorer, Neighbourhood Deep-Dive, Investment View
-- [ ] Add currency toggle to sidebar in `utils/auth.py` or a shared `utils/sidebar.py` — reads ECB rates via `get_exchange_rates()`, stores selection in `st.session_state`, exposes a `convert(eur_value)` helper used by all pages
+#### 7b — Structural changes ✓ COMPLETE
+- [x] Remove `5_Expat_Tools.py` — currency toggle now in sidebar
+- [x] Add currency toggle to sidebar via `utils/sidebar.py` — reads ECB rates, returns `(rate, symbol, fmt_price)` used by all pages to convert every price amount displayed
+- [x] All four pages updated: import charts template, call `render_currency_selector()`, multiply price columns by rate before charting, use symbol in axis labels and table headers
 
 #### 7c — Explorer page (Page 1, free)
 - [ ] Hero metrics row: Total active listings (buy toggle), Median price per m², Cities covered, Data freshness ("Updated [date]")
 - [ ] Country choropleth map: Plotly `scatter_geo` or `choropleth_mapbox` with city centroids sized/coloured by median price per m²; cream → terracotta scale; hover shows city name, median price, median €/m², avg days on market, listing count. Use `carto-positron` base map.
 - [ ] City comparison table: one row per city, columns — City, Listings, Median price, Median €/m², Avg days on market, Sunshine hrs/yr, Avg summer temp, Avg winter temp. Climate columns sourced from a static dict in the page (not scraped). Caption explaining climate data source.
 - [ ] Market pulse: 2–3 auto-generated sentences from the data (most expensive city, listing count leader, longest time on market). Template-driven, no LLM needed.
+- [ ] Rename page file to `1_Explorer.py`
 
 #### 7d — Neighbourhood Deep-Dive page (Page 2, paid)
-- [ ] Rent toggle hidden when an Algarve city is selected; show one-line note explaining why
-- [ ] Replace bar chart with neighbourhood choropleth map: Plotly `choropleth_mapbox` using GeoJSON neighbourhood boundaries. Colour scale cream → terracotta by median price per m². Hover shows neighbourhood name, median €/m², avg days on market, monthly price change %, most common property type. **Note:** sourcing GeoJSON boundaries for Portuguese neighbourhoods is the main research task here — check OpenStreetMap / GADM / INE (Statistics Portugal) for suitable data.
-- [ ] Keep summary bar chart below the map as a fallback / secondary view
+
+**Geographic structure (decided):**
+The deep-dive uses three regions, not individual cities. Within each region, the map granularity differs:
+
+| Region selector | Map shows | GeoJSON source |
+|---|---|---|
+| Porto | Neighbourhood polygons for Porto + VNG + Matosinhos | OSM via Overpass Turbo |
+| Lisboa | Neighbourhood polygons for Lisboa; single municipality blocks for Cascais + Sintra (no neighbourhood data above threshold) | OSM via Overpass Turbo |
+| Algarve | Municipality-level polygons for 6 cities (Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão) + neighbourhood bar chart below | OSM via Overpass Turbo |
+
+Rationale: Porto+VNG+Matosinhos form one conurbation. Cascais and Sintra are within the Lisboa metro area. The Algarve is shown at city level because (a) the 6 cities span 150km and neighbourhood polygons would be unreadable at that zoom, and (b) the neighbourhood names (resort development names like "Três Castelos", "Habijovem") are meaningless to the target audience without geographic context.
+
+GeoJSON files to place in `dashboard/static/`: `porto_region.geojson`, `lisboa_region.geojson`, `algarve.geojson`
+
+**Implementation tasks:**
+- [ ] Rent toggle hidden when Algarve is selected; show note: "Rental data is not available for the Algarve — the long-term rental market in this region is listed primarily on other platforms."
+- [ ] Build neighbourhood choropleth using `choropleth_mapbox` with the three GeoJSON files. Colour scale cream → terracotta by median price per m². Hover shows neighbourhood name, median €/m², avg days on market, monthly price change %, most common property type.
+- [ ] Build name lookup file `dashboard/static/neighbourhood_lookup.json` mapping scraper neighbourhood names → GeoJSON feature names for imperfect matches
+- [ ] For Algarve: show city-level choropleth (6 municipality polygons) + neighbourhood bar chart below for the selected city
+- [ ] Keep bar chart as secondary view below the map for all regions
+- [ ] Rename page file to `2_Neighbourhood_Deepdive.py`
 
 #### 7e — Investment View page (Page 3, paid)
 - [ ] Horizontal bar chart for gross yield: colour bars red/amber/green by yield band (< 3% / 3–5% / > 5%), dashed 5% benchmark line, subtitle explaining the calculation
 - [ ] Price-to-rent ratio table: clean formatted table alongside yield chart
 - [ ] Restrict rent-side data to Lisboa and Porto — exclude Algarve cities from yield display (data too sparse)
+- [ ] Rename page file to `3_Investment_View.py`
 
 ---
 
