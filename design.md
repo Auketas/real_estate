@@ -542,11 +542,11 @@ Three regions, each with different map granularity:
 - [x] Caption shows % of neighbourhoods matched to map polygons
 - [x] `get_region_neighbourhood_summary()` added to `db.py` for multi-city queries
 
-#### 7e — Investment View page (Page 3, paid)
-- [ ] Horizontal bar chart for gross yield: colour bars red/amber/green by yield band (< 3% / 3–5% / > 5%), dashed 5% benchmark line, subtitle explaining the calculation
-- [ ] Price-to-rent ratio table: clean formatted table alongside yield chart
-- [ ] Restrict rent-side data to Lisboa and Porto — exclude Algarve cities from yield display (data too sparse)
-- [ ] Rename page file to `3_Investment_View.py`
+#### 7e — Investment View page (Page 3, paid) ✓ COMPLETE
+- [x] Horizontal bar chart for gross yield: discrete colour bands (< 3% red / 3–5% amber / > 5% green), dashed 5% benchmark line, caption explaining calculation and data scope
+- [x] Price-to-rent ratio table: clean formatted table with buy price, monthly rent, yield, PTR ratio
+- [x] Algarve excluded from yield display — too sparse; note shown in page caption
+- [x] Renamed from `4_Rental_Yield.py` to `4_Investment_View.py` (final renumber to `3_` deferred to Phase 7c when City Comparison is absorbed into Explorer)
 
 ---
 
