@@ -1,4 +1,5 @@
 import streamlit as st
+import utils.charts  # registers the Portugal Plotly template
 from utils.auth import load_authenticator
 
 st.set_page_config(
@@ -17,7 +18,7 @@ if not st.session_state.get("authentication_status"):
 
     st.divider()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Market Overview**")
         st.caption(
@@ -26,25 +27,19 @@ if not st.session_state.get("authentication_status"):
         )
         st.markdown("**City Comparison**")
         st.caption(
-            "Side-by-side price distributions and price-per-m² for any combination "
+            "Side-by-side price per m² and time on market for any combination "
             "of Porto, Lisbon, and the Algarve cities."
         )
     with col2:
         st.markdown("**Neighbourhood Deep-dive**")
         st.caption(
-            "Drill into a single city by neighbourhood. Includes an interactive map "
-            "of active listings with price and size overlays."
+            "Drill into a single city by neighbourhood. Median prices and "
+            "price per m² at neighbourhood level."
         )
         st.markdown("**Rental Yield**")
         st.caption(
-            "Gross yield by city and apartment type, calculated from live buy and rent listings. "
+            "Gross yield by city, calculated from median asking buy and rent prices. "
             "Benchmarked against the 5% rule."
-        )
-    with col3:
-        st.markdown("**Expat Tools**")
-        st.caption(
-            "Live ECB exchange rates for USD, GBP, NOK, SEK, and DKK. "
-            "Property price converter, cost-of-living reference, and climate snapshot."
         )
 
     st.divider()
@@ -80,7 +75,6 @@ if st.session_state.get("authentication_status"):
     - **City Comparison** — Lisbon vs Porto vs Algarve side-by-side
     - **Neighbourhood Deep-dive** — drill into a single city by neighbourhood
     - **Rental Yield** — gross yield by area for buy-to-let investors
-    - **Expat Tools** — live exchange rates, cost of living reference
     """)
 
 elif st.session_state.get("authentication_status") is False:
