@@ -334,6 +334,7 @@ update <- function(type, city,runstats) {
     ), city, "?page="
   )
   current_ads <- scrape_listings(base_url)
+  current_ads <- current_ads[!is.na(current_ads$id) & current_ads$id != "", ]
   print("current ads scraped")
 
   con <- get_con()
@@ -376,7 +377,8 @@ update <- function(type, city,runstats) {
     current_subset <- current_ads[current_ads$id %in% existing_ids, c("id", "price")]
     db_subset      <- db_ads[db_ads$id %in% existing_ids, c("id", "price")]
     merged         <- merge(current_subset, db_subset, by = "id", suffixes = c("_current", "_db"))
-    changed        <- merged[merged$price_current != merged$price_db, ]
+    changed        <- merged[!is.na(merged$price_current) & !is.na(merged$price_db) &
+                               merged$price_current != merged$price_db, ]
     
     if (nrow(changed) > 0) {
       # Bulk insert price changes
