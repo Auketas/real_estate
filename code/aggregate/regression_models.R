@@ -141,6 +141,12 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
     if (s$r.squared < 0.3) "  *** LOW R² — check data" else ""
   ))
 
+  # Print structural coefficients (exclude noisy neighbourhood/energia dummies)
+  coef_est <- coef_mat[, "Estimate"]
+  structural <- coef_est[!grepl("^neighbourhood_f|^energia_f|^other_", names(coef_est))]
+  coef_lines <- paste(sprintf("    %-30s %+.4f", names(structural), structural), collapse = "\n")
+  message(coef_lines)
+
   coef_mat <- s$coefficients
   coefs_df <- data.frame(
     snapshot_month = snapshot_month,
