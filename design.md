@@ -496,6 +496,7 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Broken price-change history chart removed (10^15 values in `price_changes` tables; time series will return in Phase 8 once multiple monthly snapshots exist)
 - [x] City names correctly capitalised throughout, including Loulé, Portimão, Vila Nova de Gaia
 - [x] Matosinhos removed from city selectors (folded into Porto in summary tables)
+- [x] Load time verified — substantially faster in production (summary query returns ~12 rows vs full raw listings table)
 
 ---
 
@@ -503,19 +504,31 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 *Apply the new design language. See Visual Design Language section for colours, typography and chart style.*
 
-- [ ] Apply warm colour theme throughout (see palette in Visual Design Language section)
-- [ ] Remove standalone Expat Tools page
-- [ ] Add currency toggle to sidebar (EUR / GBP / USD / NOK / SEK / DKK) — apply globally to all price displays
-- [ ] Rebuild Explorer page (Page 1):
-  - [ ] Hero metrics row (4 stat cards)
-  - [ ] Country choropleth map coloured by median price per m² — cream → terracotta scale, hover shows city stats
-  - [ ] City comparison summary table including climate columns
-  - [ ] Market pulse auto-generated text (template-driven)
-- [ ] Rebuild Neighbourhood Deep-Dive page (Page 2):
-  - [ ] Replace dot map with neighbourhood choropleth — hover shows neighbourhood stats
-- [ ] Rebuild Investment View page (Page 3):
-  - [ ] Fix and clean gross yield by city chart
-  - [ ] Add price-to-rent ratio table
+#### 7a — Theme and global styles
+- [ ] Add `.streamlit/config.toml` with base background (`#FAF7F2`), sidebar background (`#F0EBE3`), and primary accent (`#C4603A`)
+- [ ] Add global custom CSS in `app.py`: metric label style (small, uppercase, secondary colour), metric value style (large, primary colour), border/divider colour (`#E0D9D0`)
+- [ ] Define shared Plotly chart template in `utils/charts.py`: terracotta primary colour, minimal grey gridlines, no chart borders, subtitle style
+
+#### 7b — Structural changes
+- [ ] Remove `5_Expat_Tools.py` — currency toggle moves to sidebar, climate data moves to Explorer table
+- [ ] Rename page files to match new navigation: Explorer, Neighbourhood Deep-Dive, Investment View
+- [ ] Add currency toggle to sidebar in `utils/auth.py` or a shared `utils/sidebar.py` — reads ECB rates via `get_exchange_rates()`, stores selection in `st.session_state`, exposes a `convert(eur_value)` helper used by all pages
+
+#### 7c — Explorer page (Page 1, free)
+- [ ] Hero metrics row: Total active listings (buy toggle), Median price per m², Cities covered, Data freshness ("Updated [date]")
+- [ ] Country choropleth map: Plotly `scatter_geo` or `choropleth_mapbox` with city centroids sized/coloured by median price per m²; cream → terracotta scale; hover shows city name, median price, median €/m², avg days on market, listing count. Use `carto-positron` base map.
+- [ ] City comparison table: one row per city, columns — City, Listings, Median price, Median €/m², Avg days on market, Sunshine hrs/yr, Avg summer temp, Avg winter temp. Climate columns sourced from a static dict in the page (not scraped). Caption explaining climate data source.
+- [ ] Market pulse: 2–3 auto-generated sentences from the data (most expensive city, listing count leader, longest time on market). Template-driven, no LLM needed.
+
+#### 7d — Neighbourhood Deep-Dive page (Page 2, paid)
+- [ ] Rent toggle hidden when an Algarve city is selected; show one-line note explaining why
+- [ ] Replace bar chart with neighbourhood choropleth map: Plotly `choropleth_mapbox` using GeoJSON neighbourhood boundaries. Colour scale cream → terracotta by median price per m². Hover shows neighbourhood name, median €/m², avg days on market, monthly price change %, most common property type. **Note:** sourcing GeoJSON boundaries for Portuguese neighbourhoods is the main research task here — check OpenStreetMap / GADM / INE (Statistics Portugal) for suitable data.
+- [ ] Keep summary bar chart below the map as a fallback / secondary view
+
+#### 7e — Investment View page (Page 3, paid)
+- [ ] Horizontal bar chart for gross yield: colour bars red/amber/green by yield band (< 3% / 3–5% / > 5%), dashed 5% benchmark line, subtitle explaining the calculation
+- [ ] Price-to-rent ratio table: clean formatted table alongside yield chart
+- [ ] Restrict rent-side data to Lisboa and Porto — exclude Algarve cities from yield display (data too sparse)
 
 ---
 
