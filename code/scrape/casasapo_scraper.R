@@ -570,9 +570,9 @@ update <- function(type, city, runstats) {
 # ---- Main entry point -------------------------------------------------------
 
 update_database <- function() {
-  cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos",
+  cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos", "maia",
                    "albufeira", "loule", "portimao", "lagos", "lagoa", "faro",
-                   "lisboa", "cascais", "sintra")
+                   "lisboa", "cascais", "sintra", "almada")
   runstats <- list(
     "date"               = Sys.Date(),
     "new_listings"       = 0,

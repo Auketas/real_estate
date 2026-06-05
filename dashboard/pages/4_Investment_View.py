@@ -10,14 +10,13 @@ require_auth()
 rate, symbol, fmt_price = render_currency_selector()
 
 # Algarve rental data is too sparse on these platforms for reliable yield estimates
-YIELD_CITIES = {"porto", "vila-nova-de-gaia", "lisboa", "cascais", "sintra"}
+YIELD_CITIES = {"porto", "vila-nova-de-gaia", "maia", "lisboa", "cascais", "sintra", "almada"}
 
 st.title("Investment View")
 st.caption(
     "Gross yield = annualised median asking rent / median asking buy price. "
     "Asking prices only — not transaction data. "
-    "Lisboa and Porto regions only — Algarve rental listings on these platforms "
-    "are too sparse for reliable estimates."
+    "Lisboa and Porto regions only — long-term rentals are too rare in the Algarve to reliably analyze."
 )
 
 buy  = get_city_summary(listing_type="buy") [["city", "city_label", "median_price"]]

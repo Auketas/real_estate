@@ -19,6 +19,8 @@ CITY_COORDS = {
     "vila-nova-de-gaia": (41.133, -8.616),
     "cascais":           (38.697, -9.421),
     "sintra":            (38.801, -9.390),
+    "almada":            (38.675, -9.137),
+    "maia":              (41.176, -8.617),
     "albufeira":         (37.089, -8.250),
     "faro":              (37.020, -7.935),
     "lagoa":             (37.137, -8.454),
@@ -34,6 +36,8 @@ CLIMATE = {
     "vila-nova-de-gaia": dict(sunshine=2494, summer_temp=23, winter_temp=11),
     "cascais":           dict(sunshine=2800, summer_temp=25, winter_temp=13),
     "sintra":            dict(sunshine=2600, summer_temp=24, winter_temp=11),
+    "almada":            dict(sunshine=2750, summer_temp=25, winter_temp=13),
+    "maia":              dict(sunshine=2500, summer_temp=23, winter_temp=11),
     "albufeira":         dict(sunshine=3300, summer_temp=28, winter_temp=15),
     "faro":              dict(sunshine=3106, summer_temp=28, winter_temp=15),
     "lagoa":             dict(sunshine=3000, summer_temp=27, winter_temp=15),
@@ -53,7 +57,7 @@ df = get_city_summary(listing_type=type_key)
 df["price_display"] = df["median_price"]        * rate
 df["ppm2_display"]  = df["median_price_per_m2"] * rate
 
-snapshot_label = pd.to_datetime(df["snapshot_month"].iloc[0]).strftime("%B %Y") \
+snapshot_label = pd.to_datetime(df["snapshot_month"].iloc[0]).strftime("%b %Y") \
     if not df.empty else "—"
 
 # ── Hero metrics ──────────────────────────────────────────────────────────────
@@ -117,11 +121,11 @@ df_table["summer_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get
 df_table["winter_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("winter_temp"))
 
 tbl = df_table[[
-    "city_label", "listing_count", "price_display", "ppm2_display",
+    "city_label", "price_display", "ppm2_display",
     "avg_time_on_market_days", "sunshine", "summer_temp", "winter_temp",
 ]].copy()
 tbl.columns = [
-    "City", "Listings", f"Median price ({symbol})", f"Median {symbol}/m²",
+    "City", f"Median price ({symbol})", f"Median {symbol}/m²",
     "Avg. days on market", "Sunshine hrs/yr", "Avg summer °C", "Avg winter °C",
 ]
 tbl[f"Median price ({symbol})"] = tbl[f"Median price ({symbol})"].map("{:,.0f}".format)

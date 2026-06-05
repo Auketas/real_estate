@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "NAME_2": "Almada"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -9.165,
+              38.688
+            ],
+            [
+              -9.142,
+              38.688
+            ],
+            [
+              -9.142,
+              38.662
+            ],
+            [
+              -9.165,
+              38.662
+            ],
+            [
+              -9.165,
+              38.688
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

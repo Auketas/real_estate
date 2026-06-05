@@ -528,9 +528,9 @@ insert_ads <- function(df, con, type, city) {
 
 update_database <- function(){
   runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0,"platform"="imovirtual")
-  cities <- c("porto/porto","porto/vila-nova-de-gaia","porto/matosinhos",
+  cities <- c("porto/porto","porto/vila-nova-de-gaia","porto/matosinhos","porto/maia",
               "faro/albufeira","faro/loule","faro/portimao","faro/lagos","faro/lagoa","faro/faro",
-              "lisboa/lisboa","lisboa/cascais","lisboa/sintra")
+              "lisboa/lisboa","lisboa/cascais","lisboa/sintra","lisboa/almada")
   for(city in cities){
     print(paste0("Scraping ",city))
     runstats <- update("rent",city,runstats)

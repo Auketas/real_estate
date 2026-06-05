@@ -24,14 +24,18 @@ def _load_json(filename):
 LOOKUP = _load_json("neighbourhood_lookup.json")
 
 ALGARVE_CITIES = ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
+ALMADA_CITIES = ("almada",)
 
 REGIONS = {
-    "Porto":   dict(cities=("porto", "vila-nova-de-gaia"),
+    "Porto":   dict(cities=("porto", "vila-nova-de-gaia", "maia"),
                     geojson="porto_region.geojson",  featureidkey="properties.NAME_3",
                     lat=41.16, lon=-8.62, zoom=11),
     "Lisboa":  dict(cities=("lisboa", "cascais", "sintra"),
                     geojson="lisboa_region.geojson", featureidkey="properties.NAME_3",
                     lat=38.72, lon=-9.14, zoom=10),
+    "Almada":  dict(cities=ALMADA_CITIES,
+                    geojson="almada.geojson",        featureidkey="properties.NAME_2",
+                    lat=38.675, lon=-9.137, zoom=12),
     "Algarve": dict(cities=ALGARVE_CITIES,
                     geojson="algarve.geojson",       featureidkey="properties.NAME_2",
                     lat=37.13, lon=-8.25, zoom=8),
@@ -58,8 +62,8 @@ cfg    = REGIONS[region]
 is_algarve = (region == "Algarve")
 if is_algarve:
     col2.caption(
-        "Rental data is not available for the Algarve — the long-term rental "
-        "market in this region is listed primarily on other platforms."
+        "Rental data is not available for the Algarve — long-term rentals "
+        "are too rare in this region to reliably analyze."
     )
     type_key = "buy"
 else:
@@ -84,15 +88,13 @@ if is_algarve:
         opacity=0.75,
         hover_data={
             "city_label":    True,
-            "ppm2_display":  True,
-            "price_display": True,
-            "listing_count": True,
+            "ppm2_display":  ":.0f",
+            "price_display": ":.0f",
         },
         labels={
             "city_label":    "City",
             "ppm2_display":  f"Median {symbol}/m²",
             "price_display": f"Median price ({symbol})",
-            "listing_count": "Listings",
         },
     )
     fig.update_layout(
@@ -113,9 +115,13 @@ if is_algarve:
         fig_bar = px.bar(
             df_nbhd.sort_values("ppm2_display", ascending=False),
             x="neighbourhood", y="ppm2_display",
-            hover_data={"listing_count": True},
+            hover_data={
+                "avg_time_on_market_days": ":.0f",
+                "most_common_property_type": True,
+            },
             labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": "",
-                    "listing_count": "Listings"},
+                    "avg_time_on_market_days": "Avg. days on market",
+                    "most_common_property_type": "Most common type"},
         )
         fig_bar.update_xaxes(tickangle=45)
         st.plotly_chart(fig_bar, use_container_width=True)
@@ -148,6 +154,15 @@ else:
 
     matched_pct = len(df_matched) / max(len(df_nbhd), 1) * 100
 
+    def format_neighbourhood_name(name):
+        """Add spaces before capital letters: LordeloDoOuro -> Lordelo Do Ouro"""
+        return ''.join(c if i == 0 else (' ' + c if c.isupper() else c)
+                      for i, c in enumerate(name))
+
+    df_choro["feature_name_display"] = df_choro["feature_name"].apply(format_neighbourhood_name)
+    df_choro["ppm2_rounded"] = df_choro["ppm2_display"].round(0)
+    df_choro["price_rounded"] = df_choro["price_display"].round(0)
+
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
@@ -157,18 +172,16 @@ else:
         zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
         opacity=0.75,
         hover_data={
-            "feature_name":   True,
-            "ppm2_display":   True,
-            "price_display":  True,
-            "listing_count":  True,
+            "feature_name_display":   True,
+            "ppm2_rounded":           True,
+            "price_rounded":          True,
             "avg_time_on_market": ":.0f",
         },
         labels={
-            "feature_name":      "Neighbourhood",
-            "ppm2_display":      f"Median {symbol}/m²",
-            "price_display":     f"Median price ({symbol})",
-            "listing_count":     "Listings",
-            "avg_time_on_market":"Avg. days on market",
+            "feature_name_display":   "Neighbourhood",
+            "ppm2_rounded":           f"Median {symbol}/m²",
+            "price_rounded":          f"Median price ({symbol})",
+            "avg_time_on_market":     "Avg. days on market",
         },
     )
     fig.update_layout(
@@ -187,9 +200,8 @@ else:
     fig_bar = px.bar(
         df_nbhd.sort_values("ppm2_display", ascending=False),
         x="neighbourhood", y="ppm2_display",
-        hover_data={"listing_count": True, "avg_time_on_market_days": ":.0f"},
+        hover_data={"avg_time_on_market_days": ":.0f"},
         labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": "",
-                "listing_count": "Listings",
                 "avg_time_on_market_days": "Avg. days on market"},
     )
     fig_bar.update_xaxes(tickangle=45)

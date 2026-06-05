@@ -7,13 +7,15 @@ CITY_LABELS = {
     "porto":             "Porto",
     "cascais":           "Cascais",
     "sintra":            "Sintra",
+    "almada":            "Almada",
+    "maia":              "Maia",
     "albufeira":         "Albufeira",
     "faro":              "Faro",
     "lagoa":             "Lagoa",
     "lagos":             "Lagos",
     "loule":             "Loulé",
     "portimao":          "Portimão",
-    "vila-nova-de-gaia": "Vila Nova de Gaia",
+    "vila-nova-de-gaia": "Gaia",
 }
 
 
