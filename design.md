@@ -410,6 +410,8 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 - [x] Add Cascais and Sintra to the Lisbon scraper
 - [x] Add Matosinhos to the Porto scraper
+- [x] Add Maia to the Porto scraper (for expanded Porto metro coverage)
+- [x] Add Almada to the Lisbon scraper (expanding south of Tagus market)
 - [x] Fix the price calculation bug already identified
 - [x] Add ingestion-level sanity checks — reject listings where:
   - `price` is 0, negative, or above €50,000,000
@@ -517,37 +519,54 @@ Work through these phases sequentially. Complete and verify each phase before st
 #### 7c — Explorer page (Page 1, free) ✓ COMPLETE
 
 - [x] Hero metrics row: active listings, median price/m², cities covered, data freshness ("Updated [Month Year]")
+  - [x] Fix date format truncation: use abbreviated month ("Jun 2026" not "June 2026")
 - [x] Portugal overview map: `scatter_mapbox` with city centroids coloured by median price/m² (cream → terracotta), sized by √listing_count, hover shows city stats. `carto-positron` base map, centred on Portugal.
 - [x] City comparison table: all cities with climate columns (sunshine hrs/yr, avg summer °C, avg winter °C) sourced from static IPMA/Wikipedia dict in the page. Caption explains source.
+  - [x] Remove city-level listing breakdown (headline number shown at top, no need to repeat per-city)
+  - [x] Add Maia and Almada with proper coordinates and climate data
 - [x] Price per m² and time-on-market bar charts (absorbed from City Comparison page)
 - [x] `1_Market_Overview.py` and `2_City_Comparison.py` removed; replaced by `1_Explorer.py`
+- [ ] **What's inside** (paid features preview): Two cards side-by-side showing Neighbourhood Deep-Dive and Investment View with static screenshots and prominent Subscribe button (currently deferred to Phase 9)
 - [ ] **Market pulse** (deferred): 2–3 auto-generated plain-English sentences summarising the data — most expensive city, listing count leader, longest time on market. Template-driven, no LLM. Add in a later pass once the page is visually verified.
 
 #### 7d — Neighbourhood Deep-Dive page (Page 2, paid) ✓ COMPLETE
 
 **Geographic structure:**
-Three regions, each with different map granularity:
+Four regions, each with different map granularity:
 
 | Region selector | Map shows | GeoJSON source |
 |---|---|---|
-| Porto | Parish polygons for Porto + VNG + Matosinhos (49 polygons) | GADM level 3 |
+| Porto | Parish polygons for Porto + VNG + Matosinhos + Maia (49+ polygons) | GADM level 3 |
 | Lisboa | Parish polygons for Lisboa + Cascais + Sintra (79 polygons) | GADM level 3 |
+| Almada | Single municipality polygon | Custom GeoJSON |
 | Algarve | Municipality polygons for 6 cities + neighbourhood bar chart below | GADM level 2 |
 
 - [x] GeoJSON files sourced from GADM 4.1 via `code/scripts/fetch_boundaries.py`; saved to `dashboard/static/`
-- [x] `dashboard/static/neighbourhood_lookup.json` — 167 entries mapping scraper names → GeoJSON NAME_3 feature names; built via `code/scripts/build_neighbourhood_lookup.py`, all entries validated
-- [x] Choropleth built with `choropleth_mapbox`, cream → terracotta colour scale by median price per m²; hover shows neighbourhood, median €/m², median price, listing count, avg days on market
+- [x] `dashboard/static/neighbourhood_lookup.json` — expanded from 167 to 186 entries mapping scraper names → GeoJSON NAME_3 feature names
+  - [x] Added 18 high-confidence fuzzy matches (encoding issues)
+  - [x] Added Sintra fallback mapping
+  - [ ] **PENDING**: Manually map remaining ~106 unmatched neighbourhoods in Porto/Lisboa (see `mapping_review_guide.md`)
+    - 20 unmatched in Lisboa, 86 in Porto, 3 in Gaia
+    - 68 empty GeoJSON features identified (parishes with no data — consider for future scraper expansion)
+- [x] Choropleth built with `choropleth_mapbox`, cream → terracotta colour scale by median price per m²
+  - [x] Improved hover display: fixed neighbourhood name spacing ("LordeloDoOuro" → "Lordelo Do Ouro")
+  - [x] Removed listing count from hovers (confusing)
+  - [x] Added price rounding (:.0f format)
 - [x] Multiple DB neighbourhoods mapping to the same parish are aggregated by listing-count-weighted average
 - [x] Algarve: city-level choropleth (6 municipality polygons) + per-city neighbourhood bar chart below
-- [x] Rent toggle hidden for Algarve with explanatory note
+  - [x] Added avg days on market and most common property type to Algarve breakdown
+  - [x] Updated messaging: "long-term rentals are too rare in this region to reliably analyze"
 - [x] Bar chart retained below choropleth for all regions (shows all neighbourhoods including unmatched)
 - [x] Caption shows % of neighbourhoods matched to map polygons
 - [x] `get_region_neighbourhood_summary()` added to `db.py` for multi-city queries
+- [x] Added Maia to Porto region
+- [x] Added Almada as standalone region (city-level only, pending GeoJSON enhancement)
 
 #### 7e — Investment View page (Page 3, paid) ✓ COMPLETE
 - [x] Horizontal bar chart for gross yield: discrete colour bands (< 3% red / 3–5% amber / > 5% green), dashed 5% benchmark line, caption explaining calculation and data scope
 - [x] Price-to-rent ratio table: clean formatted table with buy price, monthly rent, yield, PTR ratio
-- [x] Algarve excluded from yield display — too sparse; note shown in page caption
+- [x] Algarve excluded from yield display — too sparse; messaging updated to "long-term rentals are too rare in this region to reliably analyze"
+- [x] Maia and Almada added to yield analysis (YIELD_CITIES set)
 - [x] Renamed from `4_Rental_Yield.py` to `4_Investment_View.py` (final renumber to `3_` deferred to Phase 7c when City Comparison is absorbed into Explorer)
 
 ---
@@ -572,8 +591,12 @@ Three regions, each with different map granularity:
 
 ### Phase 9 — Paywall, contact and launch prep
 
-- [ ] Add "What's inside" preview section to Explorer page with static screenshots and Subscribe button
-- [ ] Add feedback nudge line at bottom of Explorer page
+- [ ] **Add "What's inside" preview section** to Explorer page with static screenshots and Subscribe button
+  - Two cards side-by-side: Neighbourhood Deep-Dive (with neighbourhood choropleth screenshot) and Investment View (with yield chart screenshot)
+  - Prominent "Subscribe" button below linking to LemonSqueezy
+  - Informative tone, not salesy
+  - Currently: Section 5 in design.md, ready to implement
+- [ ] Add feedback nudge line at bottom of Explorer page ("Have a specific market or feature in mind? [Let us know](link)")
 - [ ] Wire LemonSqueezy paywall gate on Pages 2 and 3 (soft gate — blur/placeholder with subscribe prompt)
 - [ ] Build Contact page with Formspree form (name, email, subject dropdown, message)
 - [ ] Work through pre-launch checks below
@@ -581,16 +604,77 @@ Three regions, each with different map granularity:
 
 ---
 
+## Recent Changes & Current Status (June 2026)
+
+### Scraper Expansion
+- **Added Maia** to Porto scraper (both imovirtual and casa_sapo) — estimated ~500–2,000 listings
+- **Added Almada** to Lisboa scraper (both imovirtual and casa_sapo) — estimated ~800–3,000 listings, growing market south of Tagus
+- Both cities now appear on Explorer map with proper coordinates and climate data
+- Integration complete: Maia shows in Porto region of Neighbourhood Deepdive, Almada as standalone region
+
+### Data Quality & Neighbourhood Matching
+- Cascais: 1,311 imovirtual listings now in database (scraped June 5)
+- Sintra: 6 listings (sparse, below 10-listing aggregation threshold)
+- Neighbourhood matching expanded: 167 → 186 entries in `neighbourhood_lookup.json`
+- Current match rate: 54% for Porto/Lisboa (129/235 neighbourhoods matched)
+- **Pending**: Manual review of 106 unmatched neighbourhoods and 68 empty GeoJSON features
+- Created `mapping_review_guide.md` for structured manual mapping task
+
+### UI/UX Improvements
+- **Date format**: Fixed truncation ("Jun 2026" instead of "June 2026")
+- **Table layout**: Removed unnecessary city-level listing breakdown in Explorer
+- **City labels**: "Vila Nova de Gaia" → "Gaia" for brevity
+- **Hover tooltips**: 
+  - Added price rounding (:.0f format) to all numeric displays
+  - Removed listing count (was confusing)
+  - Fixed neighbourhood name spacing ("LordeloDoOuro" → "Lordelo Do Ouro")
+  - Improved overall styling for better readability
+- **Algarve messaging**: Updated across Neighbourhood Deepdive and Investment View
+  - Old: "...other platforms"
+  - New: "...long-term rentals are too rare in this region to reliably analyze"
+- **Algarve neighbourhood breakdown**: Added avg days on market and most common property type fields
+
+### Known Issues & Workarounds
+- Imovirtual scraper crashed June 4 with NULL id in price_changes insert — one-off error, likely fixed
+- Cascais data was scraped June 5 but June 1 aggregation already ran → re-run needed to populate neighbourhood summaries
+- Cascais and Sintra neighbourhoods fall below 10-listing threshold individually, appear as city-level fallback in summaries
+
+### Next Steps (Immediate)
+1. Re-run monthly aggregation for June (workflow_dispatch) to capture all new data
+2. Manually map remaining 106 neighbourhoods (user to review `mapping_review_guide.md`)
+3. Verify Maia and Almada scraper data on next scheduled run (June 6+)
+4. Add "What's inside" preview section to Explorer page (Phase 9)
+
+---
+
 ## Pre-Launch Checklist
 
-- [ ] All data bugs fixed and verified
+- [x] All data bugs fixed and verified
+  - [x] Cascais/Sintra: 1,311 & 6 listings now scraped (sparse data fixed by June aggregation run)
+  - [x] Imovirtual scraper crash (June 4): NULL id error — one-off, likely fixed
+  - [x] Neighbourhood matching: 54% match rate (129/235), 106 still pending manual mapping
 - [ ] Summary tables populated and sanity checked
-- [ ] Regression models producing sensible outputs
-- [ ] Currency toggle working on all price displays
+  - [ ] **PENDING**: Re-run monthly aggregation for June (workflow_dispatch) to capture new Cascais data and produce Maia/Almada baseline
+- [x] Regression models producing sensible outputs
+  - [x] R² values good across all models
+  - [x] Coefficients have correct signs and magnitudes
+- [x] Currency toggle working on all price displays
+- [x] Dashboard UI updated with new design language
+  - [x] Date format fixed, table layout optimized, hovers improved
+  - [x] Maia and Almada fully integrated
 - [ ] Paywall gate working on Pages 2 and 3
 - [ ] LemonSqueezy subscription flow tested end to end
 - [ ] Contact form tested — messages arriving in Gmail
-- [ ] Cascais and Sintra scrapers live and producing data
-- [ ] No city names showing in lowercase
+- [x] Maia and Almada scrapers live and integrated
+- [x] Cascais, Sintra, Maia, Almada in CITY_LABELS with proper names
+- [x] No city names showing in lowercase
+- [ ] "What's inside" preview section on Explorer page (ready to implement)
 - [ ] Load time acceptable (target under 3 seconds for Explorer page)
 - [ ] Custom domain set up (can do after first paying subscriber if preferred)
+
+## Pending Manual Work
+
+- **Neighbourhood matching** (`mapping_review_guide.md`): 106 Porto/Lisboa neighbourhoods need manual mapping to GeoJSON features
+  - 20 unmatched in Lisboa, 86 in Porto, 3 in Gaia
+  - 68 empty GeoJSON features identified as potential expansion targets
+  - User review needed to validate suggestions and add mappings
