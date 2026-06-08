@@ -98,14 +98,16 @@ City names should be properly capitalised (Lisboa not lisboa). Climate columns s
 Two or three plain-language sentences generated from the data. Example: "Lisbon has 8,968 active listings with a median asking price of €645,000. Prices across covered cities have held broadly flat over the past month. The Algarve continues to show the longest average time on market at X days." Template-driven, updated whenever data refreshes.
 
 **Section 5: What's inside (paid features preview)**
-A simple two-column section with a heading like "Go deeper with a subscription." Two cards side by side:
+A heading "Go deeper with a subscription" followed by a short demo video (20–30 seconds, silent, auto-loop) showcasing the paid features in action:
+- Choropleth map showing neighbourhood price per m² with user clicking into a neighbourhood
+- Charts and metrics updating dynamically
+- Calculator input and output in motion
 
-- **Neighbourhood Deep-Dive** — short description (e.g. "Explore price per m², time on market, and monthly trends at neighbourhood level across Lisbon, Porto and the Algarve. Includes an interactive map.") with a static screenshot of the neighbourhood choropleth map.
-- **Investment View** — short description (e.g. "Gross yield estimates and a rental yield calculator by property type and neighbourhood. Built for buyers evaluating rental potential.") with a static screenshot of the yield chart.
-
-Below the two cards: a prominent Subscribe button linking to LemonSqueezy.
+Below the video: brief descriptive text summarizing what users get ("Explore neighbourhood-level analysis, historical trends, and interactive calculators for any property specification"), plus a prominent Subscribe button linking to LemonSqueezy.
 
 This section should feel like a natural part of the page, not an intrusive upsell. Keep the tone informative rather than salesy.
+
+**Note:** Video production deferred to Phase 10 — will record and edit after page design is finalized and stable.
 
 **Section 6: Feedback nudge**
 A single subtle line near the bottom of the page, below the preview section. Suggested copy: "Have a specific market or feature in mind? We're actively expanding — [let us know](link to Contact page)." Style as secondary text, small font, not a banner or alert box. The goal is to invite input without signalling incompleteness.
@@ -627,6 +629,51 @@ Four regions, each with different map granularity:
 
 ---
 
+### Phase 10 — Neighbourhood detail pages
+
+*Make neighbourhoods clickable to create a dedicated view with more granular analysis.*
+
+**DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout (photo positioning, text length), which metrics to lead with, chart order, mobile responsiveness.
+
+#### Implementation
+- [ ] Neighbourhood metadata storage:
+  - [ ] JSON config file: `dashboard/static/neighbourhoods.json`
+    ```json
+    {
+      "neighbourhoods": {
+        "baixa_lisboa": {
+          "display_name": "Baixa",
+          "city": "lisboa",
+          "intro_text": "Lisbon's historic heart...",
+          "image_path": "neighbourhood_images/baixa.jpg"
+        }
+      }
+    }
+    ```
+  - [ ] Images stored locally in `dashboard/static/neighbourhood_images/` — version controlled, no external dependencies
+  - [ ] Load config once at app startup with `@st.cache_resource`
+  - [ ] Fallback: show data-only view if metadata missing (graceful degradation)
+- [ ] Neighbourhood detail page logic:
+  - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
+  - [ ] Single template renders all neighbourhoods — no per-neighbourhood page files needed
+  - [ ] Render metadata (intro text + photo) from JSON config
+  - [ ] Neighbourhood-specific metrics: median price, price per m², time on market, active listings, most common property type
+  - [ ] Listing breakdown: property type distribution, bedroom mix, feature prevalence (parking, garden, etc.)
+  - [ ] Historical trend: median price over available monthly history (allows price_change_pct comparison to city)
+  - [ ] Filter all graphs by `neighbourhood = selected` only
+- [ ] Make neighbourhoods clickable in existing choropleth/bar charts:
+  - [ ] Plotly `clickData` event triggers `st.query_params` update
+  - [ ] Alternative: custom buttons below chart ("View details")
+- [ ] DB query: `get_neighbourhood_detail()` returns full historical time series for a single neighbourhood from `neighbourhood_monthly_summary` with buy/rent toggle
+- [ ] Styling: inherit page design language (terracotta, same chart template)
+- [ ] Demo video for Explorer landing page:
+  - [ ] Screen record: choropleth map interaction, clicking into a neighbourhood, calculator inputs/outputs (20–30 seconds total)
+  - [ ] Edit for pace and clarity (silent, no audio)
+  - [ ] Upload to Streamlit (embedded via video URL or local asset)
+  - [ ] Integrate into "What's inside" section on Explorer page
+
+---
+
 ### Phase 8 — Price calculators
 
 - [ ] Build buy price calculator (Page 2):
@@ -647,11 +694,12 @@ Four regions, each with different map granularity:
 
 ### Phase 9 — Paywall, contact and launch prep
 
-- [ ] **Add "What's inside" preview section** to Explorer page with static screenshots and Subscribe button
-  - Two cards side-by-side: Neighbourhood Deep-Dive (with neighbourhood choropleth screenshot) and Investment View (with yield chart screenshot)
-  - Prominent "Subscribe" button below linking to LemonSqueezy
+- [ ] **Add "What's inside" preview section** to Explorer page with demo video and Subscribe button
+  - 20–30 second silent demo video showing choropleth map interaction, neighbourhood detail, and calculator
+  - Brief descriptive text below video ("Explore neighbourhood-level analysis, historical trends, and interactive calculators...")
+  - Prominent "Subscribe" button linking to LemonSqueezy
   - Informative tone, not salesy
-  - Currently: Section 5 in design.md, ready to implement
+  - **Note:** Video production (screen recording + editing) deferred to Phase 10 — implement page layout and CTA now, add video after design is finalized
 - [ ] Add feedback nudge line at bottom of Explorer page ("Have a specific market or feature in mind? [Let us know](link)")
 - [ ] Wire LemonSqueezy paywall gate on Pages 2 and 3 (soft gate — blur/placeholder with subscribe prompt)
 - [ ] Build Contact page with Formspree form (name, email, subject dropdown, message)
