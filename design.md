@@ -183,12 +183,48 @@ Honest caveat displayed prominently: "These are gross yield estimates based on a
 
 ### Principle
 
-Pre-aggregate everything. The dashboard should never run heavy calculations at query time. All expensive computations happen in scheduled jobs and results are stored in summary tables.
+Pre-aggregate everything. The dashboard should never run heavy calculations at query time. All expensive computations happen in scheduled jobs and results are stored in summary tables. The dashboard always reads from `_latest_` tables, which are refreshed daily; monthly `_monthly_` archive tables retain historical snapshots for trend analysis and regression model training.
 
 ### New tables to create
 
+**`city_latest_summary`**
+Daily snapshot of city-level stats, refreshed every night at 20:00 UTC. Feeds the dashboard with current data.
+```sql
+CREATE TABLE city_latest_summary (
+    id SERIAL PRIMARY KEY,
+    snapshot_date DATE,
+    city VARCHAR(100),
+    listing_type VARCHAR(10),      -- 'buy' or 'rent'
+    listing_count INTEGER,
+    median_price NUMERIC,
+    median_price_per_m2 NUMERIC,
+    avg_time_on_market_days NUMERIC,
+    p25_price NUMERIC,
+    p75_price NUMERIC,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**`neighbourhood_latest_summary`**
+Daily snapshot of neighbourhood-level stats, refreshed every night at 20:00 UTC. Feeds the dashboard with current data.
+```sql
+CREATE TABLE neighbourhood_latest_summary (
+    id SERIAL PRIMARY KEY,
+    snapshot_date DATE,
+    city VARCHAR(100),
+    neighbourhood VARCHAR(200),
+    listing_type VARCHAR(10),
+    listing_count INTEGER,
+    median_price NUMERIC,
+    median_price_per_m2 NUMERIC,
+    avg_time_on_market_days NUMERIC,
+    most_common_property_type VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
 **`city_monthly_summary`**
-Pre-aggregated city-level stats, refreshed monthly.
+Monthly archive of city-level stats. Populated on the 1st of each month by copying from `city_latest_summary`. Retains historical snapshots for trend analysis.
 ```sql
 CREATE TABLE city_monthly_summary (
     id SERIAL PRIMARY KEY,
@@ -206,7 +242,7 @@ CREATE TABLE city_monthly_summary (
 ```
 
 **`neighbourhood_monthly_summary`**
-Pre-aggregated neighbourhood-level stats, refreshed monthly.
+Monthly archive of neighbourhood-level stats. Populated on the 1st of each month by copying from `neighbourhood_latest_summary`. Includes `monthly_price_change_pct` computed from prior month.
 ```sql
 CREATE TABLE neighbourhood_monthly_summary (
     id SERIAL PRIMARY KEY,
@@ -287,10 +323,19 @@ The 7-day buffer handles properties that temporarily disappear and reappear on t
 
 This keeps the active table lean and fast while preserving the historical data needed for time-on-market calculations and model training.
 
-**Monthly aggregation job:** Schedule a job to run on the 1st of each month that:
-1. Populates `city_monthly_summary` and `neighbourhood_monthly_summary` from active listings
-2. Runs the hedonic regression models (buy and rent, per city) and writes coefficients to `model_coefficients` and `model_metadata`
-3. Runs sanity checks (flag any median price per m² outside a plausible range, any yield above 20%, any listing count changes >50% month-on-month)
+**Aggregation jobs — two cadences:**
+
+**Daily aggregation** (every night at 20:00 UTC):
+1. Populates `city_latest_summary` and `neighbourhood_latest_summary` from active listings
+2. Overwrites previous day's snapshot (DELETE + INSERT)
+3. Does not compute `monthly_price_change_pct` — that's for monthly archive only
+4. Dashboard queries always read from `_latest_` tables for current data
+
+**Monthly aggregation** (1st of each month at 06:00 UTC):
+1. Copies today's `_latest_` snapshot into the monthly archive tables (`city_monthly_summary` and `neighbourhood_monthly_summary`)
+2. Computes `monthly_price_change_pct` by comparing to prior month's archive
+3. Runs the hedonic regression models (buy and rent, per city) and writes coefficients to `model_coefficients` and `model_metadata`
+4. Runs sanity checks (flag any median price per m² outside plausible range, price changes >20% month-on-month, listing count changes >50%)
 
 ### Sanity checks — two layers
 
@@ -492,13 +537,24 @@ Work through these phases sequentially. Complete and verify each phase before st
 *Migrate existing dashboard queries to use summary tables. Fix known data bugs.*
 
 - [x] Add `get_city_summary()` and `get_neighbourhood_summary()` to `utils/db.py`; add `CITY_LABELS` dict with correct Portuguese diacritics
-- [x] Migrate all four pages to read from `city_monthly_summary` / `neighbourhood_monthly_summary`
+- [x] Migrate all four pages to read from `city_latest_summary` / `neighbourhood_latest_summary` (daily snapshots)
 - [x] Rental yield bug fixed — was computing on raw unfiltered prices; now uses pre-aggregated medians
 - [x] Price per m² outlier bug fixed — summary tables exclude outliers at aggregation time
 - [x] Broken price-change history chart removed (10^15 values in `price_changes` tables; time series will return in Phase 8 once multiple monthly snapshots exist)
 - [x] City names correctly capitalised throughout, including Loulé, Portimão, Vila Nova de Gaia
 - [x] Matosinhos removed from city selectors (folded into Porto in summary tables)
 - [x] Load time verified — substantially faster in production (summary query returns ~12 rows vs full raw listings table)
+
+### Phase 7a — Daily aggregation ✓ COMPLETE
+
+*Split aggregation into daily (dashboard) and monthly (archive) cadences.*
+
+- [x] Create `city_latest_summary` and `neighbourhood_latest_summary` tables — daily snapshots with `snapshot_date`
+- [x] Create daily aggregation script (`code/aggregate/daily_aggregation.R`) — mirrors monthly logic but without price change computation
+- [x] Create GitHub Actions workflow (`daily_aggregation.yml`) — runs at 20:00 UTC every night
+- [x] Update monthly workflow to copy from `_latest_` → `_monthly_` and compute `monthly_price_change_pct`
+- [x] Dashboard now reads from `_latest_` tables for always-current data
+- [x] Monthly archive tables retain historical snapshots for trend analysis and regression training
 
 ---
 
@@ -605,6 +661,14 @@ Four regions, each with different map granularity:
 ---
 
 ## Recent Changes & Current Status (June 2026)
+
+### Daily/Monthly Aggregation Split
+- **Dashboard now shows current data daily** — implemented dual-timeline aggregation strategy
+- **Daily aggregation** (20:00 UTC): refreshes `city_latest_summary` and `neighbourhood_latest_summary` every night
+- **Monthly archive** (1st of month): copies latest snapshot into `_monthly_` tables and computes month-over-month changes
+- Dashboard queries updated to read from `_latest_` tables
+- Monthly `_monthly_` archive tables retained for historical trend analysis
+- Schema created, workflows configured; awaiting table creation in Neon console
 
 ### Scraper Expansion
 - **Added Maia** to Porto scraper (both imovirtual and casa_sapo) — estimated ~500–2,000 listings
