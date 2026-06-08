@@ -46,25 +46,34 @@ try:
     )
     cur = conn.cursor()
 
-    # Query all active, non-duplicate listings
+    # Query all active, non-duplicate listings from buy listings
     cur.execute("""
         SELECT neighbourhood, COUNT(*) as count
         FROM ads_buy
-        WHERE is_active = 1 AND duplicate_flag = 0
-        GROUP BY neighbourhood
-        UNION ALL
-        SELECT neighbourhood, COUNT(*) as count
-        FROM ads_rent
-        WHERE is_active = 1 AND duplicate_flag = 0
+        WHERE is_active::integer = 1 AND duplicate_flag::integer = 0
         GROUP BY neighbourhood
     """)
 
-    listings_by_neighbourhood = {}
+    buy_listings = {}
     for neighbourhood, count in cur.fetchall():
-        if neighbourhood in listings_by_neighbourhood:
-            listings_by_neighbourhood[neighbourhood] += count
-        else:
-            listings_by_neighbourhood[neighbourhood] = count
+        buy_listings[neighbourhood] = count
+
+    # Query rent listings
+    cur.execute("""
+        SELECT neighbourhood, COUNT(*) as count
+        FROM ads_rent
+        WHERE is_active::integer = 1 AND duplicate_flag::integer = 0
+        GROUP BY neighbourhood
+    """)
+
+    rent_listings = {}
+    for neighbourhood, count in cur.fetchall():
+        rent_listings[neighbourhood] = count
+
+    # Combine both
+    listings_by_neighbourhood = dict(buy_listings)
+    for nb, count in rent_listings.items():
+        listings_by_neighbourhood[nb] = listings_by_neighbourhood.get(nb, 0) + count
 
     conn.close()
 
