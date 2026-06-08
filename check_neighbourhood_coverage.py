@@ -50,12 +50,12 @@ try:
     cur.execute("""
         SELECT neighbourhood, COUNT(*) as count
         FROM ads_buy
-        WHERE is_active = true AND duplicate_flag = false
+        WHERE is_active = 1 AND duplicate_flag = 0
         GROUP BY neighbourhood
         UNION ALL
         SELECT neighbourhood, COUNT(*) as count
         FROM ads_rent
-        WHERE is_active = true AND duplicate_flag = false
+        WHERE is_active = 1 AND duplicate_flag = 0
         GROUP BY neighbourhood
     """)
 
