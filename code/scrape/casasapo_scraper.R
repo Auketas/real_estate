@@ -201,7 +201,7 @@ scrape_listings_sapo <- function(base_url) {
 
   repeat {
     cat("Scraping page", page, "\n")
-    Sys.sleep(runif(1, 3, 6))
+    Sys.sleep(runif(1, 8, 12))
 
     pageresults <- get_listing_info_sapo(page, base_url)
     results     <- pageresults$results
@@ -390,14 +390,14 @@ convert_coordinates_to_neighbourhood_sapo <- function(lon, lat) {
 
 # ---- Batch new-ads scraper --------------------------------------------------
 
-scrape_new_ads_sapo <- function(new_listings, date, cityname, type, maxads = 4000) {
+scrape_new_ads_sapo <- function(new_listings, date, cityname, type, maxads = 1500) {
   nads         <- min(maxads, nrow(new_listings))
   new_listings <- new_listings[seq_len(nads), ]
   newdata      <- matrix(nrow = nads, ncol = 16)
 
   for (i in seq_len(nads)) {
     cat("Scraping ad", i, "of", nads, "\n")
-    Sys.sleep(runif(1, 3, 6))
+    Sys.sleep(runif(1, 6, 10))
     result <- tryCatch(
       scrape_ad_sapo(new_listings$link[i]),
       error = function(e) {
@@ -570,6 +570,9 @@ update <- function(type, city, runstats) {
 # ---- Main entry point -------------------------------------------------------
 
 update_database <- function() {
+  message("Waiting 30s before starting scrape to avoid rate limiting...")
+  Sys.sleep(30)
+
   cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos", "maia",
                    "albufeira", "loule", "portimao", "lagos", "lagoa", "faro",
                    "lisboa", "cascais", "sintra", "almada")
