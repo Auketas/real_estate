@@ -3,7 +3,26 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "WebFetch(domain:casa.sapo.pt)",
+      "WebFetch(domain:www.imovirtual.com)",
+      "Bash(git -C \"C:\\\\Users\\\\Auke\\\\real_estate\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\Auke\\\\real_estate\" diff --stat)",
+      "Bash(git *)",
+      "Bash(not exist *)",
+      "PowerShell(New-Item *)",
+      "Bash(Rscript code/aggregate/run_monthly_aggregation.R)",
+      "PowerShell(\\(Get-Command Rscript -ErrorAction SilentlyContinue\\).Source; Get-ChildItem \"C:\\\\Program Files\\\\R\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "Bash(PGPASSWORD=\"$NEON_PASSWORD\" psql *)",
+      "Read(//mnt/c/Users/Auke/**)",
+      "Bash(dashboard/.venv/Scripts/python.exe -c ' *)",
+      "Bash(python -c \"import psycopg2; print\\('ok'\\)\")",
+      "Bash(python3 -c \"import psycopg2; print\\('ok'\\)\")",
+      "Bash(python *)",
+      "Bash(gh workflow *)",
+      "Bash(curl -X POST -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: token __CMDSUB_OUTPUT__' https://api.github.com/repos/Auketas/real_estate/actions/workflows/monthly_aggregation.yml/dispatches -d '{\"ref\":\"main\"}')"
     ]
   }
 }

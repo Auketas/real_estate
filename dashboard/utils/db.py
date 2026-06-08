@@ -76,12 +76,13 @@ def get_price_history(type: str = "buy", city: str = None) -> pd.DataFrame:
 
 @st.cache_data(ttl=3600)
 def get_city_summary(listing_type: str = None) -> pd.DataFrame:
-    conditions = ["snapshot_month = (SELECT MAX(snapshot_month) FROM city_monthly_summary)"]
+    conditions = []
     params = {}
     if listing_type:
         conditions.append("listing_type = :listing_type")
         params["listing_type"] = listing_type
-    sql = text("SELECT * FROM city_monthly_summary WHERE " + " AND ".join(conditions))
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    sql = text(f"SELECT * FROM city_latest_summary {where}")
     with get_engine().connect() as conn:
         df = pd.read_sql(sql, conn, params=params)
     df["city_label"] = df["city"].map(CITY_LABELS).fillna(df["city"].str.title())
@@ -93,30 +94,24 @@ def get_region_neighbourhood_summary(cities: tuple, listing_type: str = None) ->
     """Load neighbourhood summary for multiple cities. Pass cities as a tuple."""
     city_params = {f"c{i}": city for i, city in enumerate(cities)}
     placeholders = ", ".join(f":c{i}" for i in range(len(cities)))
-    conditions = [
-        "snapshot_month = (SELECT MAX(snapshot_month) FROM neighbourhood_monthly_summary)",
-        f"city IN ({placeholders})",
-    ]
+    conditions = [f"city IN ({placeholders})"]
     params = dict(city_params)
     if listing_type:
         conditions.append("listing_type = :listing_type")
         params["listing_type"] = listing_type
-    sql = text("SELECT * FROM neighbourhood_monthly_summary WHERE " + " AND ".join(conditions))
+    sql = text("SELECT * FROM neighbourhood_latest_summary WHERE " + " AND ".join(conditions))
     with get_engine().connect() as conn:
         return pd.read_sql(sql, conn, params=params)
 
 
 @st.cache_data(ttl=3600)
 def get_neighbourhood_summary(city: str, listing_type: str = None) -> pd.DataFrame:
-    conditions = [
-        "snapshot_month = (SELECT MAX(snapshot_month) FROM neighbourhood_monthly_summary)",
-        "city = :city",
-    ]
+    conditions = ["city = :city"]
     params = {"city": city}
     if listing_type:
         conditions.append("listing_type = :listing_type")
         params["listing_type"] = listing_type
-    sql = text("SELECT * FROM neighbourhood_monthly_summary WHERE " + " AND ".join(conditions))
+    sql = text("SELECT * FROM neighbourhood_latest_summary WHERE " + " AND ".join(conditions))
     with get_engine().connect() as conn:
         return pd.read_sql(sql, conn, params=params)
 

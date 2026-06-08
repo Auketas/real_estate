@@ -1,0 +1,25 @@
+Explorer:
+- Data freshness: Only the text 'Updated J...' is readable, not the actual date when the dashboard was updated. 
+- In the table, I'm not sure about showing the number of listings broken down by city. Wouldn't it be better to just give the headline number and that's it?
+- In the table, Via nova de Gaia isn't readable, please change to just 'Gaia'
+- Can you display the table in full, without having to scroll through it? You just have to scroll to see the last input which is a bit of a hassle as the page has a scroll in and of itself
+- At some point we should give a tease of what's in the paid content so that people are enticed to subscribe. Do I understand correctly that this is not the landing page? And if so, we should probably add it there
+
+Neighbourhood deepdive:
+- Maybe a bit more contrast between high and low values in the colour palet
+- I see there's a few regions that aren't matched. Foz has no ads either rent or buy in Porto, I find it difficult to believe there's genuinely no ads there in the dataset so we should probably have another look at the matching of database to map regions. This is backed up by the fact that the viz says that 49% of neighbourhoods have been linked to map polygons. I appreciate the heads up but this should never be visible on the page when we expect actual users to come in.
+- I see there's no ads in Maia, which you could argue is a part of Porto. Should we add it? Also, on the Lisbon page Cascais and Sintra aren't included.
+- For Porto we have included Gaia, but for Lisbon the other side of the river isn't included. Is Almada and the regions around it generally seen as an integral part of Lisbon and should we add it?
+- The message for not showing rents for the Algarve, don't refer to 'other platforms', let's just say long-term rentals are too rare here to reliably analyze the data
+- On the hover over, let's not show the number of listings
+- Average number of days on market isn't included in the Algarve
+- Most frequent property type isn't shown
+- Price looks very ugly, for Paranhos in Porto, for example, it says 543981.1783755302. Please round off
+- In general, can a lot be done about the visuals of the hover over? I'd like it to look a bit more attractive
+- When the neighbourhood name has spaces, show as such on the hover over. Now it says, for example, 'LordeloDoOuro'
+
+Investment view
+- As before, in the message about the Algarve don't refer to 'these platforms'
+
+
+In general: I don't see the price calculators yet, those are part of phase 8 and/or 9, right?

@@ -1,0 +1,40 @@
+Hi there,
+
+Thank you for applying to Lemon Squeezy and for providing the details regarding your product.
+
+We have reviewed the information and would like to request further details to proceed with our evaluation. Specifically, we would appreciate it if you could provide:
+
+Could you provide a valid website URL showcasing your product
+Pricing Information: A breakdown of the pricing for your product.
+Demo Video: A video demonstrating the functionality and features of your product.
+Can you share your personal social media account URLs? We ask for this to help with our KYB/KYC checks.
+Can you explain (more specifically) the types of products you plan to sell on Lemon Squeezy (e.g. what are they, how are they made/licensed, who are they for, are they single purchases or subscriptions, etc.)?
+Could you please update your terms and conditions and refund policy? please ensure your landing page includes clear links to your Terms of Service, Privacy Policy, and Refund Policy.
+
+This information will help us gain a better understanding of your offering and assist us in moving forward.
+
+Thank you for your attention to this matter. We look forward to your response.
+
+Best,
+Ankith
+
+Dear Ankith,
+
+Thank you for your message. Please find my responses below:
+
+Website URL: https://real-estate-pt.streamlit.app/
+
+Pricing: Monthly subscription at €19/month, as shown on the landing page.
+
+Demo video: Please see the attached recording. The product is still in active development so the final version will include additional features, but the video is representative of the core functionality.
+
+Social media: https://www.linkedin.com/in/auke-tas/
+
+Product description: Real Estate PT is a data analytics dashboard covering the Portuguese property market. It aggregates daily listing data from major Portuguese property portals and presents price trends, city comparisons, rental yield estimates, and expat tools (exchange rates, cost of living). It is aimed at expats and buy-to-let investors — primarily from Northern Europe and North America — who want data-driven insight into the market. It is offered as a monthly subscription.
+
+Terms & policies: Links to the Terms of Service, Privacy Policy, and Refund Policy have been added to the landing page.
+
+Please let me know if you need anything further.
+
+Best regards,
+Auke

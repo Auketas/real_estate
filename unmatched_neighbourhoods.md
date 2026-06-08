@@ -1,0 +1,120 @@
+# UNMATCHED NEIGHBOURHOODS FOR MANUAL REVIEW
+These 106 neighbourhoods exist in the database but don't map to GeoJSON features.Please suggest mappings or indicate if they should be skipped.
+
+## LISBOA (20 unmatched)
+- Alto da Cova da Moura
+- Bairro da Calçada dos Mestres
+- Bairro da Encarnação
+- Bairro das Novas Nações
+- Bairro de São Miguel
+- Cais do Sodré
+- Carriche
+- Damaia de Baixo
+- Encarnação
+- Graça
+- Jardins do Cristo Rei
+- Mercês
+- Miraflores
+- Parque das Nações
+- Pedrouços
+- Poço do Bispo
+- Quinta do Morgado
+- Quinta do Pisany
+- Sete Rios
+- São Bento
+
+## PORTO (88 unmatched)
+- Agra
+- Agramonte
+- Agudela
+- Arca d'água
+- Arrábida
+- Asprela
+- Aval de Baixo
+- Aval de Cima
+- Avilhão
+- Azenha de Cima
+- Azevedo
+- Bairro das Campinas
+- Bandeirinha
+- Barranha
+- Basílio Teles
+- Bela
+- Bica Velha
+- Biquinha
+- Bouça
+- Brito Capelo
+- Burgal
+- Campo Lindo
+- Carcavelos
+- Carreiros
+- Carrial
+- Carvalhido
+- Casas de Mar
+- Cidral
+- Clérigos
+- Condominhas
+- Cristo-Rei
+- Cruz de Pau
+- Doze Casas
+- Estação
+- Fontainhas
+- Fontinha
+- Gueifães
+- Gólgota
+- Icas
+- Ilhéu
+- Lada
+- Lamas
+- Leixões
+- Leça da Palmeira
+- Lima
+- Lindo Vale
+- Lugarinho
+- Lóios
+- Marquês
+- Mercado
+- Mirante
+- Moalde
+- Monsanto
+- Monte Pedral
+- Monte Xisto
+- Montebelo
+- Mouteira
+- Noeda
+- Oliveiras
+- Ouro
+- Outeiro
+- Padrão da Légua
+- Passos
+- Pereiró
+- Picoutos
+- Prado
+- Póvoa
+- Quinta do Gama
+- Recarei
+- Requesende
+- Santa Luzia
+- Seixo
+- Senhora da Penha
+- Senhora do Porto
+- São Crispim
+- São Domingos
+- São Gens
+- São João Novo
+- São Roque
+- Sé
+- Telheiro
+- Torrinha
+- Urbanização da Fontinha
+- Vale Formoso
+- Vigorosa
+- Vilar
+- Vitória
+- Árvore Grossa
+
+## VILA-NOVA-DE-GAIA (3 unmatched)
+- Quebrantães
+- São Pedro da Afurada
+- Vilar do Paraíso
+

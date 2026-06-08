@@ -1,0 +1,12 @@
+[1] "Scraping porto"
+Scraping page 1 
+429 Too Many Requests — waiting 30s before retry 1/5
+429 Too Many Requests — waiting 60s before retry 2/5
+429 Too Many Requests — waiting 120s before retry 3/5
+429 Too Many Requests — waiting 240s before retry 4/5
+429 Too Many Requests — waiting 480s before retry 5/5
+Error in read_html.response(resp) : 
+  Too Many Requests (RFC 6585) (HTTP 429).
+Calls: update_database ... get_listing_info_sapo -> read_html -> read_html.response -> <Anonymous>
+Execution halted
+Error: Process completed with exit code 1.
