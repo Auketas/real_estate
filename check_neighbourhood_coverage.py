@@ -105,7 +105,8 @@ try:
         print(f"Top unmatched neighbourhoods:\n")
         for i, (nb, count) in enumerate(list(unmatched_nbs.items())[:20], 1):
             pct = 100 * count / total_listings
-            print(f"{i:2d}. {nb:35s} {count:>6,} listings ({pct:>5.2f}%)")
+            nb_display = nb if nb else "(NULL/missing)"
+            print(f"{i:2d}. {nb_display:35s} {count:>6,} listings ({pct:>5.2f}%)")
     else:
         print("All neighbourhoods are mapped!")
 
