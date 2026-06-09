@@ -125,10 +125,15 @@ mark_duplicates <- function(con) {
 
 sapo_headers <- function(referer = "https://casa.sapo.pt/") {
   add_headers(
-    "User-Agent"      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept"          = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language" = "pt-PT,pt;q=0.9,en;q=0.8",
-    "Accept-Encoding" = "identity",
+    "User-Agent"      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept"          = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Language" = "pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding" = "gzip, deflate, br",
+    "Cache-Control"   = "max-age=0",
+    "Sec-Fetch-Dest"  = "document",
+    "Sec-Fetch-Mode"  = "navigate",
+    "Sec-Fetch-Site"  = "none",
+    "Sec-Fetch-User"  = "?1",
     "Referer"         = referer
   )
 }
@@ -201,7 +206,7 @@ scrape_listings_sapo <- function(base_url) {
 
   repeat {
     cat("Scraping page", page, "\n")
-    Sys.sleep(runif(1, 8, 12))
+    Sys.sleep(runif(1, 15, 25))
 
     pageresults <- get_listing_info_sapo(page, base_url)
     results     <- pageresults$results
@@ -397,7 +402,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, type, maxads = 150
 
   for (i in seq_len(nads)) {
     cat("Scraping ad", i, "of", nads, "\n")
-    Sys.sleep(runif(1, 6, 10))
+    Sys.sleep(runif(1, 10, 15))
     result <- tryCatch(
       scrape_ad_sapo(new_listings$link[i]),
       error = function(e) {
@@ -570,8 +575,8 @@ update <- function(type, city, runstats) {
 # ---- Main entry point -------------------------------------------------------
 
 update_database <- function() {
-  message("Waiting 30s before starting scrape to avoid rate limiting...")
-  Sys.sleep(30)
+  message("Waiting 60s before starting scrape to avoid rate limiting...")
+  Sys.sleep(60)
 
   cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos", "maia",
                    "albufeira", "loule", "portimao", "lagos", "lagoa", "faro",

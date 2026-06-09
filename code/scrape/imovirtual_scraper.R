@@ -357,29 +357,37 @@ update <- function(type, city,runstats) {
   new_listings <- current_ads[current_ads$id %in% new_ids, ]
   if(nrow(new_listings)>0){
     new_data <- scrape_new_ads(new_listings, today, cityname, type)
-    con <- safe_con(con)
-    insert_ads(new_data, con, type, cityname)
+  } else {
+    new_data <- NULL
   }
   print("new ads inserted into database")
-  
-  con <- safe_con(con)
+
+  # Disconnect before the long scraping phase; reconnect for all DB writes to ensure fresh connection
+  dbDisconnect(con)
+  con <- get_con()
+  on.exit(dbDisconnect(con))
+
+  if (!is.null(new_data)) {
+    insert_ads(new_data, con, type, cityname)
+  }
+
   # 5. Update existing
   if (length(existing_ids) > 0) {
-    
+
     # Bulk update last_seen for all existing ids
     ids_sql <- paste0("('", paste(existing_ids, collapse = "','"), "')")
     dbExecute(con, sprintf(
       "UPDATE %s SET last_seen = '%s' WHERE id IN %s AND city = '%s' AND platform = '%s';",
       table_ads, today, ids_sql, cityname, "imovirtual"
     ))
-    
+
     # Find price changes by joining current_ads with db_ads in R
     current_subset <- current_ads[current_ads$id %in% existing_ids, c("id", "price")]
     db_subset      <- db_ads[db_ads$id %in% existing_ids, c("id", "price")]
     merged         <- merge(current_subset, db_subset, by = "id", suffixes = c("_current", "_db"))
     changed        <- merged[!is.na(merged$price_current) & !is.na(merged$price_db) &
                                merged$price_current != merged$price_db, ]
-    
+
     if (nrow(changed) > 0) {
       # Bulk insert price changes
       price_changes_df <- data.frame(
@@ -391,7 +399,7 @@ update <- function(type, city,runstats) {
         platform  = "imovirtual"
       )
       dbWriteTable(con, table_prices, price_changes_df, append = TRUE, row.names = FALSE)
-      
+
       # Bulk update prices - loop is still needed here but only for changed rows
       # which should be a small subset
       for (i in 1:nrow(changed)) {
@@ -400,14 +408,13 @@ update <- function(type, city,runstats) {
           table_ads, as.numeric(changed$price_current[i]), changed$id[i], cityname, "imovirtual"
         ))
       }
-      
+
       price_changes <- nrow(changed)
     }
   }
   print("existing ads updated")
-  
+
   # 6. Inactive ads - one bulk update
-  con <- safe_con(con)
   if (length(inactive_ids) > 0) {
     ids_sql <- paste0("('", paste(inactive_ids, collapse = "','"), "')")
     dbExecute(con, sprintf(
