@@ -41,25 +41,25 @@ load_geojson_data <- function() {
   geojsons <- list()
 
   # Porto region (parishes)
-  porto_path <- file.path(geojson_dir, "porto.geojson")
+  porto_path <- file.path(geojson_dir, "porto_region.geojson")
   if (file.exists(porto_path)) {
     cat(sprintf("Reading %s...\n", porto_path))
     geojsons[["porto"]] <- st_read(porto_path, quiet = TRUE)
-    cat(sprintf("Loaded porto.geojson with %d features, columns: %s\n",
+    cat(sprintf("Loaded porto_region.geojson with %d features, columns: %s\n",
                 nrow(geojsons[["porto"]]), paste(names(geojsons[["porto"]]), collapse = ", ")))
   } else {
-    cat(sprintf("porto.geojson not found at %s\n", porto_path))
+    cat(sprintf("porto_region.geojson not found at %s\n", porto_path))
   }
 
   # Lisboa region (parishes)
-  lisboa_path <- file.path(geojson_dir, "lisboa.geojson")
+  lisboa_path <- file.path(geojson_dir, "lisboa_region.geojson")
   if (file.exists(lisboa_path)) {
     cat(sprintf("Reading %s...\n", lisboa_path))
     geojsons[["lisboa"]] <- st_read(lisboa_path, quiet = TRUE)
-    cat(sprintf("Loaded lisboa.geojson with %d features, columns: %s\n",
+    cat(sprintf("Loaded lisboa_region.geojson with %d features, columns: %s\n",
                 nrow(geojsons[["lisboa"]]), paste(names(geojsons[["lisboa"]]), collapse = ", ")))
   } else {
-    cat(sprintf("lisboa.geojson not found at %s\n", lisboa_path))
+    cat(sprintf("lisboa_region.geojson not found at %s\n", lisboa_path))
   }
 
   # Algarve (municipalities)
