@@ -45,6 +45,8 @@ convert_coordinates_to_neighbourhood <- function(lon, lat) {
 con <- get_con()
 on.exit(dbDisconnect(con))
 
+total_assigned <- 0
+
 safe_update <- function(con, table_name, nbh_id_pairs) {
   if (nrow(nbh_id_pairs) == 0) return(0)
 
@@ -111,6 +113,7 @@ if (nrow(missing_nbh) > 0) {
     # Update database with parameterized queries
     updated <- safe_update(con, "ads_buy", filled[, c("neighbourhood", "id")])
     cat(sprintf("Updated %d rows in ads_buy\n", updated))
+    total_assigned <- total_assigned + updated
   } else {
     cat("No listings successfully geocoded\n")
   }
@@ -162,6 +165,7 @@ if (nrow(missing_rent) > 0) {
     # Update database with parameterized queries
     updated <- safe_update(con, "ads_rent", filled_rent[, c("neighbourhood", "id")])
     cat(sprintf("Updated %d rows in ads_rent\n", updated))
+    total_assigned <- total_assigned + updated
   } else {
     cat("No rental listings successfully geocoded\n")
   }
@@ -169,4 +173,23 @@ if (nrow(missing_rent) > 0) {
   cat("No rental listings with missing neighbourhoods found\n")
 }
 
-cat("\nDone!\n")
+# ---- Final summary ----
+cat("\n========== FINAL SUMMARY ==========\n")
+cat(sprintf("Total neighbourhoods assigned: %d\n", total_assigned))
+
+remaining_buy <- dbGetQuery(con, "
+SELECT COUNT(*) as count FROM ads_buy
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+")$count
+
+remaining_rent <- dbGetQuery(con, "
+SELECT COUNT(*) as count FROM ads_rent
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+")$count
+
+remaining_total <- remaining_buy + remaining_rent
+
+cat(sprintf("Still unassigned (buy): %d\n", remaining_buy))
+cat(sprintf("Still unassigned (rent): %d\n", remaining_rent))
+cat(sprintf("Still unassigned (total): %d\n", remaining_total))
+cat("===================================\n")
