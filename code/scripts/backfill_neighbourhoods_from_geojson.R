@@ -308,4 +308,34 @@ remaining_total <- remaining_buy + remaining_rent
 cat(sprintf("Still unassigned (buy): %d\n", remaining_buy))
 cat(sprintf("Still unassigned (rent): %d\n", remaining_rent))
 cat(sprintf("Still unassigned (total): %d\n", remaining_total))
-cat("===================================\n")
+
+# Show distribution of unmatched by city
+cat("\n--- Unmatched coordinates by city ---\n")
+unmatched_by_city_buy <- dbGetQuery(con, "
+SELECT city, COUNT(*) as count FROM ads_buy
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+GROUP BY city
+ORDER BY count DESC
+")
+cat("Buy listings:\n")
+print(unmatched_by_city_buy)
+
+unmatched_by_city_rent <- dbGetQuery(con, "
+SELECT city, COUNT(*) as count FROM ads_rent
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+GROUP BY city
+ORDER BY count DESC
+")
+cat("\nRent listings:\n")
+print(unmatched_by_city_rent)
+
+# Sample unmatched coordinates
+cat("\n--- Sample of unmatched buy coordinates (first 10) ---\n")
+sample_unmatched <- dbGetQuery(con, "
+SELECT id, city, lat, lon FROM ads_buy
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+LIMIT 10
+")
+print(sample_unmatched)
+
+cat("\n===================================\n")
