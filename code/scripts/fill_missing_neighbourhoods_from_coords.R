@@ -45,6 +45,26 @@ convert_coordinates_to_neighbourhood <- function(lon, lat) {
 con <- get_con()
 on.exit(dbDisconnect(con))
 
+safe_update <- function(con, table_name, nbh_id_pairs) {
+  if (nrow(nbh_id_pairs) == 0) return(0)
+
+  con <- safe_con(con)  # reconnect if needed
+  updated <- 0
+  query <- sprintf("UPDATE %s SET neighbourhood = $1 WHERE id = $2", table_name)
+
+  for (i in seq_len(nrow(nbh_id_pairs))) {
+    tryCatch({
+      dbExecute(con, query,
+        params = list(nbh_id_pairs$neighbourhood[i], nbh_id_pairs$id[i])
+      )
+      updated <- updated + 1
+    }, error = function(e) {
+      cat(sprintf("Error updating row %d: %s\n", i, e$message))
+    })
+  }
+  updated
+}
+
 # ---- Find listings with coordinates but no neighbourhood ----
 cat("Finding listings with coordinates but missing neighbourhoods...\n")
 
@@ -88,15 +108,9 @@ if (nrow(missing_nbh) > 0) {
   if (nrow(filled) > 0) {
     cat(sprintf("\nSuccessfully geocoded %d listings\n", nrow(filled)))
 
-    # Update database
-    for (i in seq_len(nrow(filled))) {
-      dbExecute(con, sprintf(
-        "UPDATE ads_buy SET neighbourhood = '%s' WHERE id = '%s'",
-        filled$neighbourhood[i], filled$id[i]
-      ))
-    }
-
-    cat(sprintf("Updated %d rows in ads_buy\n", nrow(filled)))
+    # Update database with parameterized queries
+    updated <- safe_update(con, "ads_buy", filled[, c("neighbourhood", "id")])
+    cat(sprintf("Updated %d rows in ads_buy\n", updated))
   } else {
     cat("No listings successfully geocoded\n")
   }
@@ -145,14 +159,9 @@ if (nrow(missing_rent) > 0) {
   if (nrow(filled_rent) > 0) {
     cat(sprintf("\nSuccessfully geocoded %d rental listings\n", nrow(filled_rent)))
 
-    for (i in seq_len(nrow(filled_rent))) {
-      dbExecute(con, sprintf(
-        "UPDATE ads_rent SET neighbourhood = '%s' WHERE id = '%s'",
-        filled_rent$neighbourhood[i], filled_rent$id[i]
-      ))
-    }
-
-    cat(sprintf("Updated %d rows in ads_rent\n", nrow(filled_rent)))
+    # Update database with parameterized queries
+    updated <- safe_update(con, "ads_rent", filled_rent[, c("neighbourhood", "id")])
+    cat(sprintf("Updated %d rows in ads_rent\n", updated))
   } else {
     cat("No rental listings successfully geocoded\n")
   }
