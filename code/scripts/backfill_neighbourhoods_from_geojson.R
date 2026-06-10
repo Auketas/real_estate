@@ -194,7 +194,7 @@ if (nrow(missing_buy) > 0) {
       cat(sprintf("Progress: %d/%d\n", i, nrow(missing_buy)))
     }
 
-    city <- tolower(missing_buy$city[i])
+    city <- gsub("-", " ", tolower(missing_buy$city[i]))
     lon <- missing_buy$lon[i]
     lat <- missing_buy$lat[i]
 
@@ -254,7 +254,7 @@ if (nrow(missing_rent) > 0) {
       cat(sprintf("Progress: %d/%d\n", i, nrow(missing_rent)))
     }
 
-    city <- tolower(missing_rent$city[i])
+    city <- gsub("-", " ", tolower(missing_rent$city[i]))
     lon <- missing_rent$lon[i]
     lat <- missing_rent$lat[i]
 
