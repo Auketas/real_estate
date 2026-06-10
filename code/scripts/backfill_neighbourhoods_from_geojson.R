@@ -30,31 +30,58 @@ load_geojson_data <- function() {
   cat("Loading GeoJSON files...\n")
 
   geojson_dir <- "dashboard/static"
+  cat(sprintf("Looking for GeoJSON files in: %s\n", geojson_dir))
+  cat(sprintf("Directory exists: %s\n", dir.exists(geojson_dir)))
+
+  if (dir.exists(geojson_dir)) {
+    files <- list.files(geojson_dir, pattern = "\\.geojson$")
+    cat(sprintf("Found %d .geojson files: %s\n", length(files), paste(files, collapse = ", ")))
+  }
 
   geojsons <- list()
 
   # Porto region (parishes)
-  if (file.exists(file.path(geojson_dir, "porto.geojson"))) {
-    geojsons[["porto"]] <- st_read(file.path(geojson_dir, "porto.geojson"), quiet = TRUE)
-    cat("Loaded porto.geojson\n")
+  porto_path <- file.path(geojson_dir, "porto.geojson")
+  if (file.exists(porto_path)) {
+    cat(sprintf("Reading %s...\n", porto_path))
+    geojsons[["porto"]] <- st_read(porto_path, quiet = TRUE)
+    cat(sprintf("Loaded porto.geojson with %d features, columns: %s\n",
+                nrow(geojsons[["porto"]]), paste(names(geojsons[["porto"]]), collapse = ", ")))
+  } else {
+    cat(sprintf("porto.geojson not found at %s\n", porto_path))
   }
 
   # Lisboa region (parishes)
-  if (file.exists(file.path(geojson_dir, "lisboa.geojson"))) {
-    geojsons[["lisboa"]] <- st_read(file.path(geojson_dir, "lisboa.geojson"), quiet = TRUE)
-    cat("Loaded lisboa.geojson\n")
+  lisboa_path <- file.path(geojson_dir, "lisboa.geojson")
+  if (file.exists(lisboa_path)) {
+    cat(sprintf("Reading %s...\n", lisboa_path))
+    geojsons[["lisboa"]] <- st_read(lisboa_path, quiet = TRUE)
+    cat(sprintf("Loaded lisboa.geojson with %d features, columns: %s\n",
+                nrow(geojsons[["lisboa"]]), paste(names(geojsons[["lisboa"]]), collapse = ", ")))
+  } else {
+    cat(sprintf("lisboa.geojson not found at %s\n", lisboa_path))
   }
 
   # Algarve (municipalities)
-  if (file.exists(file.path(geojson_dir, "algarve.geojson"))) {
-    geojsons[["algarve"]] <- st_read(file.path(geojson_dir, "algarve.geojson"), quiet = TRUE)
-    cat("Loaded algarve.geojson\n")
+  algarve_path <- file.path(geojson_dir, "algarve.geojson")
+  if (file.exists(algarve_path)) {
+    cat(sprintf("Reading %s...\n", algarve_path))
+    geojsons[["algarve"]] <- st_read(algarve_path, quiet = TRUE)
+    cat(sprintf("Loaded algarve.geojson with %d features, columns: %s\n",
+                nrow(geojsons[["algarve"]]), paste(names(geojsons[["algarve"]]), collapse = ", ")))
+  } else {
+    cat(sprintf("algarve.geojson not found at %s\n", algarve_path))
   }
 
   # Almada
-  if (file.exists(file.path(geojson_dir, "almada.geojson"))) {
-    geojsons[["almada"]] <- st_read(file.path(geojson_dir, "almada.geojson"), quiet = TRUE)
-    cat("Loaded almada.geojson\n")
+  almada_path <- file.path(geojson_dir, "almada.geojson")
+  if (file.exists(almada_path)) {
+    cat(sprintf("Reading %s...\n", almada_path))
+    geojsons[["almada"]] <- st_read(almada_path, quiet = TRUE)
+    cat(sprintf("Loaded almada.geojson with %d features, columns: %s\n",
+                nrow(geojsons[["almada"]]), paste(names(geojsons[["almada"]]), collapse = ", ")))
+  } else {
+    cat(sprintf("almada.geojson not found at %s\n", almada_path))
   }
 
   geojsons
@@ -77,9 +104,22 @@ match_point_to_neighbourhood <- function(lon, lat, geojson) {
 
     # Use the first matching polygon
     feature_idx <- intersects[1]
-    neighbourhood <- geojson$NAME_3[feature_idx]
+
+    # Check which columns exist
+    if ("NAME_3" %in% names(geojson)) {
+      neighbourhood <- geojson$NAME_3[feature_idx]
+    } else if ("NAME_2" %in% names(geojson)) {
+      neighbourhood <- geojson$NAME_2[feature_idx]
+    } else {
+      cat(sprintf("Available columns in geojson: %s\n", paste(names(geojson), collapse = ", ")))
+      return(NA_character_)
+    }
+
     if (is.na(neighbourhood)) {
-      neighbourhood <- geojson$NAME_2[feature_idx]  # fallback for Algarve
+      # Try fallback column
+      if ("NAME_2" %in% names(geojson) && "NAME_3" %in% names(geojson)) {
+        neighbourhood <- geojson$NAME_2[feature_idx]
+      }
     }
 
     return(neighbourhood)
