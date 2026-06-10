@@ -199,15 +199,15 @@ if (nrow(missing_rent) > 0) {
 cat("\n========== FINAL SUMMARY ==========\n")
 cat(sprintf("Total neighbourhoods assigned: %d\n", total_assigned))
 
-remaining_buy <- dbGetQuery(con, "
+remaining_buy <- as.numeric(dbGetQuery(con, "
 SELECT COUNT(*) as count FROM ads_buy
 WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
-")$count
+")[1, 1])
 
-remaining_rent <- dbGetQuery(con, "
+remaining_rent <- as.numeric(dbGetQuery(con, "
 SELECT COUNT(*) as count FROM ads_rent
 WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
-")$count
+")[1, 1])
 
 remaining_total <- remaining_buy + remaining_rent
 
