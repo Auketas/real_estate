@@ -1,0 +1,285 @@
+library(DBI)
+library(RPostgres)
+library(sf)
+library(dplyr)
+library(jsonlite)
+
+get_con <- function() {
+  dbConnect(
+    RPostgres::Postgres(),
+    dbname = Sys.getenv("NEON_DBNAME"),
+    host = Sys.getenv("NEON_HOST"),
+    user = Sys.getenv("NEON_USER"),
+    password = Sys.getenv("NEON_PASSWORD"),
+    port = 5432,
+    sslmode = "require"
+  )
+}
+
+safe_con <- function(con) {
+  tryCatch({
+    dbExecute(con, "SELECT 1")
+    return(con)
+  }, error = function(e) {
+    message("Connection lost, reconnecting...")
+    return(get_con())
+  })
+}
+
+# Load GeoJSON files and neighbourhood mapping
+load_geojson_data <- function() {
+  cat("Loading GeoJSON files and neighbourhood mapping...\n")
+
+  geojson_dir <- "dashboard/static"
+
+  geojsons <- list()
+
+  # Porto region (parishes)
+  if (file.exists(file.path(geojson_dir, "porto.geojson"))) {
+    geojsons[["porto"]] <- st_read(file.path(geojson_dir, "porto.geojson"), quiet = TRUE)
+    cat("Loaded porto.geojson\n")
+  }
+
+  # Lisboa region (parishes)
+  if (file.exists(file.path(geojson_dir, "lisboa.geojson"))) {
+    geojsons[["lisboa"]] <- st_read(file.path(geojson_dir, "lisboa.geojson"), quiet = TRUE)
+    cat("Loaded lisboa.geojson\n")
+  }
+
+  # Algarve (municipalities)
+  if (file.exists(file.path(geojson_dir, "algarve.geojson"))) {
+    geojsons[["algarve"]] <- st_read(file.path(geojson_dir, "algarve.geojson"), quiet = TRUE)
+    cat("Loaded algarve.geojson\n")
+  }
+
+  # Almada
+  if (file.exists(file.path(geojson_dir, "almada.geojson"))) {
+    geojsons[["almada"]] <- st_read(file.path(geojson_dir, "almada.geojson"), quiet = TRUE)
+    cat("Loaded almada.geojson\n")
+  }
+
+  # Load neighbourhood lookup mapping
+  if (!file.exists(file.path(geojson_dir, "neighbourhood_lookup.json"))) {
+    stop("neighbourhood_lookup.json not found in ", geojson_dir)
+  }
+
+  mapping <- fromJSON(file.path(geojson_dir, "neighbourhood_lookup.json"))
+  cat("Loaded neighbourhood_lookup.json with", length(mapping), "entries\n")
+
+  list(geojsons = geojsons, mapping = mapping)
+}
+
+# Match a point to a GeoJSON feature and get the neighbourhood name
+match_point_to_neighbourhood <- function(lon, lat, geojson, mapping, region) {
+  if (is.na(lon) || is.na(lat)) return(NA_character_)
+
+  tryCatch({
+    point <- st_point(c(lon, lat))
+    point_sf <- st_sf(geometry = st_sfc(point), crs = 4326)
+
+    # Find which polygon(s) contain this point
+    intersects <- st_intersects(point_sf, geojson, sparse = TRUE)[[1]]
+
+    if (length(intersects) == 0) {
+      return(NA_character_)  # point outside all polygons
+    }
+
+    # Use the first matching polygon
+    feature_idx <- intersects[1]
+    feature_name <- geojson$NAME_3[feature_idx]
+    if (is.na(feature_name)) {
+      feature_name <- geojson$NAME_2[feature_idx]  # fallback for Algarve
+    }
+
+    if (is.na(feature_name)) {
+      return(NA_character_)
+    }
+
+    # Look up this feature name in the mapping
+    mapped_neighbourhood <- mapping[[feature_name]]
+
+    if (is.null(mapped_neighbourhood)) {
+      return(NA_character_)  # no mapping found
+    }
+
+    return(mapped_neighbourhood)
+  }, error = function(e) {
+    cat(sprintf("Error matching point (%.4f, %.4f): %s\n", lon, lat, e$message))
+    return(NA_character_)
+  })
+}
+
+# Main backfill logic
+con <- get_con()
+on.exit(dbDisconnect(con))
+
+data <- load_geojson_data()
+geojsons <- data$geojsons
+mapping <- data$mapping
+
+if (length(geojsons) == 0) {
+  cat("ERROR: No GeoJSON files found in dashboard/static\n")
+  stop("Cannot proceed without GeoJSON files")
+}
+
+safe_update <- function(con, table_name, nbh_id_pairs) {
+  if (nrow(nbh_id_pairs) == 0) return(0)
+
+  con <- safe_con(con)
+  updated <- 0
+  query <- sprintf("UPDATE %s SET neighbourhood = $1 WHERE id = $2", table_name)
+
+  for (i in seq_len(nrow(nbh_id_pairs))) {
+    tryCatch({
+      dbExecute(con, query,
+        params = list(nbh_id_pairs$neighbourhood[i], nbh_id_pairs$id[i])
+      )
+      updated <- updated + 1
+    }, error = function(e) {
+      cat(sprintf("Error updating row %d: %s\n", i, e$message))
+    })
+  }
+  updated
+}
+
+total_assigned <- 0
+
+# ---- Process buy listings ----
+cat("\n=== Processing ads_buy ===\n")
+
+missing_buy <- dbGetQuery(con, "
+SELECT id, city, lat, lon
+FROM ads_buy
+WHERE is_active = 1
+  AND (neighbourhood IS NULL OR neighbourhood = '')
+  AND lat IS NOT NULL
+  AND lon IS NOT NULL
+ORDER BY city
+")
+
+cat(sprintf("Found %d buy listings with missing neighbourhoods\n", nrow(missing_buy)))
+
+if (nrow(missing_buy) > 0) {
+  missing_buy$neighbourhood <- NA_character_
+  matched_count <- 0
+
+  for (i in seq_len(nrow(missing_buy))) {
+    if (i %% 50 == 0) {
+      cat(sprintf("Progress: %d/%d\n", i, nrow(missing_buy)))
+    }
+
+    city <- tolower(missing_buy$city[i])
+    lon <- missing_buy$lon[i]
+    lat <- missing_buy$lat[i]
+
+    # Select appropriate GeoJSON based on city
+    geojson <- NULL
+    if (city %in% c("porto", "vila nova de gaia", "matosinhos", "maia")) {
+      geojson <- geojsons[["porto"]]
+    } else if (city %in% c("lisboa", "cascais", "sintra")) {
+      geojson <- geojsons[["lisboa"]]
+    } else if (city == "almada") {
+      geojson <- geojsons[["almada"]]
+    } else if (city %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")) {
+      geojson <- geojsons[["algarve"]]
+    }
+
+    if (!is.null(geojson)) {
+      nbh <- match_point_to_neighbourhood(lon, lat, geojson, mapping, city)
+      if (!is.na(nbh)) {
+        missing_buy$neighbourhood[i] <- nbh
+        matched_count <- matched_count + 1
+      }
+    }
+  }
+
+  cat(sprintf("Matched %d/%d coordinates to neighbourhoods\n", matched_count, nrow(missing_buy)))
+
+  filled <- missing_buy[!is.na(missing_buy$neighbourhood), ]
+
+  if (nrow(filled) > 0) {
+    updated <- safe_update(con, "ads_buy", filled[, c("neighbourhood", "id")])
+    cat(sprintf("Updated %d rows in ads_buy\n", updated))
+    total_assigned <- total_assigned + updated
+  }
+}
+
+# ---- Process rent listings ----
+cat("\n=== Processing ads_rent ===\n")
+
+missing_rent <- dbGetQuery(con, "
+SELECT id, city, lat, lon
+FROM ads_rent
+WHERE is_active = 1
+  AND (neighbourhood IS NULL OR neighbourhood = '')
+  AND lat IS NOT NULL
+  AND lon IS NOT NULL
+ORDER BY city
+")
+
+cat(sprintf("Found %d rental listings with missing neighbourhoods\n", nrow(missing_rent)))
+
+if (nrow(missing_rent) > 0) {
+  missing_rent$neighbourhood <- NA_character_
+  matched_count <- 0
+
+  for (i in seq_len(nrow(missing_rent))) {
+    if (i %% 50 == 0) {
+      cat(sprintf("Progress: %d/%d\n", i, nrow(missing_rent)))
+    }
+
+    city <- tolower(missing_rent$city[i])
+    lon <- missing_rent$lon[i]
+    lat <- missing_rent$lat[i]
+
+    geojson <- NULL
+    if (city %in% c("porto", "vila nova de gaia", "matosinhos", "maia")) {
+      geojson <- geojsons[["porto"]]
+    } else if (city %in% c("lisboa", "cascais", "sintra")) {
+      geojson <- geojsons[["lisboa"]]
+    } else if (city == "almada") {
+      geojson <- geojsons[["almada"]]
+    } else if (city %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")) {
+      geojson <- geojsons[["algarve"]]
+    }
+
+    if (!is.null(geojson)) {
+      nbh <- match_point_to_neighbourhood(lon, lat, geojson, mapping, city)
+      if (!is.na(nbh)) {
+        missing_rent$neighbourhood[i] <- nbh
+        matched_count <- matched_count + 1
+      }
+    }
+  }
+
+  cat(sprintf("Matched %d/%d coordinates to neighbourhoods\n", matched_count, nrow(missing_rent)))
+
+  filled_rent <- missing_rent[!is.na(missing_rent$neighbourhood), ]
+
+  if (nrow(filled_rent) > 0) {
+    updated <- safe_update(con, "ads_rent", filled_rent[, c("neighbourhood", "id")])
+    cat(sprintf("Updated %d rows in ads_rent\n", updated))
+    total_assigned <- total_assigned + updated
+  }
+}
+
+# ---- Final summary ----
+cat("\n========== FINAL SUMMARY ==========\n")
+cat(sprintf("Total neighbourhoods assigned: %d\n", total_assigned))
+
+remaining_buy <- as.numeric(dbGetQuery(con, "
+SELECT COUNT(*) as count FROM ads_buy
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+")[1, 1])
+
+remaining_rent <- as.numeric(dbGetQuery(con, "
+SELECT COUNT(*) as count FROM ads_rent
+WHERE is_active = 1 AND (neighbourhood IS NULL OR neighbourhood = '')
+")[1, 1])
+
+remaining_total <- remaining_buy + remaining_rent
+
+cat(sprintf("Still unassigned (buy): %d\n", remaining_buy))
+cat(sprintf("Still unassigned (rent): %d\n", remaining_rent))
+cat(sprintf("Still unassigned (total): %d\n", remaining_total))
+cat("===================================\n")
