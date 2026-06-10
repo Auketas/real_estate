@@ -2,7 +2,6 @@ library(DBI)
 library(RPostgres)
 library(sf)
 library(dplyr)
-library(jsonlite)
 
 get_con <- function() {
   dbConnect(
@@ -26,9 +25,9 @@ safe_con <- function(con) {
   })
 }
 
-# Load GeoJSON files and neighbourhood mapping
+# Load GeoJSON files
 load_geojson_data <- function() {
-  cat("Loading GeoJSON files and neighbourhood mapping...\n")
+  cat("Loading GeoJSON files...\n")
 
   geojson_dir <- "dashboard/static"
 
@@ -58,19 +57,11 @@ load_geojson_data <- function() {
     cat("Loaded almada.geojson\n")
   }
 
-  # Load neighbourhood lookup mapping
-  if (!file.exists(file.path(geojson_dir, "neighbourhood_lookup.json"))) {
-    stop("neighbourhood_lookup.json not found in ", geojson_dir)
-  }
-
-  mapping <- fromJSON(file.path(geojson_dir, "neighbourhood_lookup.json"))
-  cat("Loaded neighbourhood_lookup.json with", length(mapping), "entries\n")
-
-  list(geojsons = geojsons, mapping = mapping)
+  geojsons
 }
 
-# Match a point to a GeoJSON feature and get the neighbourhood name
-match_point_to_neighbourhood <- function(lon, lat, geojson, mapping, region) {
+# Match a point to a GeoJSON feature and return the neighbourhood name
+match_point_to_neighbourhood <- function(lon, lat, geojson) {
   if (is.na(lon) || is.na(lat)) return(NA_character_)
 
   tryCatch({
@@ -86,23 +77,12 @@ match_point_to_neighbourhood <- function(lon, lat, geojson, mapping, region) {
 
     # Use the first matching polygon
     feature_idx <- intersects[1]
-    feature_name <- geojson$NAME_3[feature_idx]
-    if (is.na(feature_name)) {
-      feature_name <- geojson$NAME_2[feature_idx]  # fallback for Algarve
+    neighbourhood <- geojson$NAME_3[feature_idx]
+    if (is.na(neighbourhood)) {
+      neighbourhood <- geojson$NAME_2[feature_idx]  # fallback for Algarve
     }
 
-    if (is.na(feature_name)) {
-      return(NA_character_)
-    }
-
-    # Look up this feature name in the mapping
-    mapped_neighbourhood <- mapping[[feature_name]]
-
-    if (is.null(mapped_neighbourhood)) {
-      return(NA_character_)  # no mapping found
-    }
-
-    return(mapped_neighbourhood)
+    return(neighbourhood)
   }, error = function(e) {
     cat(sprintf("Error matching point (%.4f, %.4f): %s\n", lon, lat, e$message))
     return(NA_character_)
@@ -113,9 +93,7 @@ match_point_to_neighbourhood <- function(lon, lat, geojson, mapping, region) {
 con <- get_con()
 on.exit(dbDisconnect(con))
 
-data <- load_geojson_data()
-geojsons <- data$geojsons
-mapping <- data$mapping
+geojsons <- load_geojson_data()
 
 if (length(geojsons) == 0) {
   cat("ERROR: No GeoJSON files found in dashboard/static\n")
@@ -185,7 +163,7 @@ if (nrow(missing_buy) > 0) {
     }
 
     if (!is.null(geojson)) {
-      nbh <- match_point_to_neighbourhood(lon, lat, geojson, mapping, city)
+      nbh <- match_point_to_neighbourhood(lon, lat, geojson)
       if (!is.na(nbh)) {
         missing_buy$neighbourhood[i] <- nbh
         matched_count <- matched_count + 1
