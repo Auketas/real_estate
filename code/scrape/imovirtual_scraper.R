@@ -9,6 +9,7 @@ library(DBI)
 library(RSQLite)
 library(httr2)
 library(RPostgres)
+library(sf)
 
 get_con <- function() {
   dbConnect(
@@ -33,6 +34,87 @@ safe_con <- function(con) {
   }, error = function(e) {
     message("Connection lost, reconnecting...")
     return(get_con())
+  })
+}
+
+# Load GeoJSON files for point-in-polygon neighbourhood matching
+load_geojson_neighbourhoods <- function() {
+  geojson_dir <- "dashboard/static"
+  geojsons <- list()
+
+  tryCatch({
+    porto_path <- file.path(geojson_dir, "porto_region.geojson")
+    if (file.exists(porto_path)) {
+      geojsons[["porto"]] <- st_read(porto_path, quiet = TRUE)
+    }
+
+    lisboa_path <- file.path(geojson_dir, "lisboa_region.geojson")
+    if (file.exists(lisboa_path)) {
+      geojsons[["lisboa"]] <- st_read(lisboa_path, quiet = TRUE)
+    }
+
+    algarve_path <- file.path(geojson_dir, "algarve.geojson")
+    if (file.exists(algarve_path)) {
+      geojsons[["algarve"]] <- st_read(algarve_path, quiet = TRUE)
+    }
+
+    almada_path <- file.path(geojson_dir, "almada.geojson")
+    if (file.exists(almada_path)) {
+      geojsons[["almada"]] <- st_read(almada_path, quiet = TRUE)
+    }
+
+    return(geojsons)
+  }, error = function(e) {
+    message("Could not load GeoJSON files: ", e$message)
+    return(list())
+  })
+}
+
+# Global GeoJSON data (loaded once at startup)
+GEOJSON_NEIGHBOURHOODS <- load_geojson_neighbourhoods()
+
+# Match point to polygon
+get_neighbourhood_from_polygon <- function(lon, lat, city) {
+  if (is.na(lon) || is.na(lat) || length(GEOJSON_NEIGHBOURHOODS) == 0) {
+    return(NA_character_)
+  }
+
+  tryCatch({
+    city_norm <- gsub("-", " ", tolower(city))
+    geojson <- NULL
+
+    if (city_norm %in% c("porto", "vila nova de gaia", "matosinhos", "maia")) {
+      geojson <- GEOJSON_NEIGHBOURHOODS[["porto"]]
+    } else if (city_norm %in% c("lisboa", "cascais", "sintra")) {
+      geojson <- GEOJSON_NEIGHBOURHOODS[["lisboa"]]
+    } else if (city_norm == "almada") {
+      geojson <- GEOJSON_NEIGHBOURHOODS[["almada"]]
+    } else if (city_norm %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")) {
+      geojson <- GEOJSON_NEIGHBOURHOODS[["algarve"]]
+    }
+
+    if (is.null(geojson)) {
+      return(NA_character_)
+    }
+
+    point <- st_point(c(lon, lat))
+    point_sf <- st_sf(geometry = st_sfc(point), crs = 4326)
+
+    intersects <- st_intersects(point_sf, geojson, sparse = TRUE)[[1]]
+
+    if (length(intersects) == 0) {
+      return(NA_character_)
+    }
+
+    feature_idx <- intersects[1]
+    neighbourhood <- geojson$NAME_3[feature_idx]
+    if (is.na(neighbourhood)) {
+      neighbourhood <- geojson$NAME_2[feature_idx]
+    }
+
+    return(neighbourhood)
+  }, error = function(e) {
+    return(NA_character_)
   })
 }
 
@@ -476,6 +558,32 @@ update_price_table <- function(id,dbprice,currentprice,today,pricetable){
 }
 
 convert_coordinates_to_neighbourhood <- function(lon, lat) {
+  # Try GeoJSON point-in-polygon matching first
+  if (!is.na(lon) && !is.na(lat) && length(GEOJSON_NEIGHBOURHOODS) > 0) {
+    tryCatch({
+      for (geojson in GEOJSON_NEIGHBOURHOODS) {
+        point <- st_point(c(lon, lat))
+        point_sf <- st_sf(geometry = st_sfc(point), crs = 4326)
+        intersects <- st_intersects(point_sf, geojson, sparse = TRUE)[[1]]
+
+        if (length(intersects) > 0) {
+          feature_idx <- intersects[1]
+          neighbourhood <- geojson$NAME_3[feature_idx]
+          if (is.na(neighbourhood)) {
+            neighbourhood <- geojson$NAME_2[feature_idx]
+          }
+          if (!is.na(neighbourhood)) {
+            return(neighbourhood)
+          }
+        }
+      }
+    }, error = function(e) {
+      # If GeoJSON matching fails, fall back to OSM
+      NULL
+    })
+  }
+
+  # Fall back to OpenStreetMap reverse geocoding
   df <- data.frame(lon = lon, lat = lat)
   result <- reverse_geocode(
     df,
@@ -484,7 +592,7 @@ convert_coordinates_to_neighbourhood <- function(lon, lat) {
     method = "osm",
     full_results = TRUE
   )
-  
+
   # Ensure columns exist before coalescing (OSM doesn't always return all fields)
   expected_cols <- c("neighbourhood", "suburb")
   for (col in expected_cols) {
@@ -492,13 +600,13 @@ convert_coordinates_to_neighbourhood <- function(lon, lat) {
       result[[col]] <- NA_character_
     }
   }
-  
+
   neighbourhood <- result %>%
     transmute(
       neighbourhood = coalesce(neighbourhood, suburb)
     ) %>%
     pull(neighbourhood)
-  
+
   return(neighbourhood)
 }
 

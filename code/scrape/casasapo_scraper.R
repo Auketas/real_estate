@@ -6,6 +6,7 @@ library(jsonlite)
 library(stringr)
 library(dplyr)
 library(tidygeocoder)
+library(sf)
 
 get_con <- function() {
   dbConnect(
@@ -28,6 +29,42 @@ safe_con <- function(con) {
     return(get_con())
   })
 }
+
+# Load GeoJSON files for point-in-polygon neighbourhood matching
+load_geojson_neighbourhoods <- function() {
+  geojson_dir <- "dashboard/static"
+  geojsons <- list()
+
+  tryCatch({
+    porto_path <- file.path(geojson_dir, "porto_region.geojson")
+    if (file.exists(porto_path)) {
+      geojsons[["porto"]] <- st_read(porto_path, quiet = TRUE)
+    }
+
+    lisboa_path <- file.path(geojson_dir, "lisboa_region.geojson")
+    if (file.exists(lisboa_path)) {
+      geojsons[["lisboa"]] <- st_read(lisboa_path, quiet = TRUE)
+    }
+
+    algarve_path <- file.path(geojson_dir, "algarve.geojson")
+    if (file.exists(algarve_path)) {
+      geojsons[["algarve"]] <- st_read(algarve_path, quiet = TRUE)
+    }
+
+    almada_path <- file.path(geojson_dir, "almada.geojson")
+    if (file.exists(almada_path)) {
+      geojsons[["almada"]] <- st_read(almada_path, quiet = TRUE)
+    }
+
+    return(geojsons)
+  }, error = function(e) {
+    message("Could not load GeoJSON files: ", e$message)
+    return(list())
+  })
+}
+
+# Global GeoJSON data (loaded once at startup)
+GEOJSON_NEIGHBOURHOODS <- load_geojson_neighbourhoods()
 
 # Parse price from raw HTML text — handles ranges like "50 000 € - 55 000 €"
 # by taking the lower (first) bound before non-digit stripping joins them.
@@ -382,6 +419,33 @@ scrape_ad_sapo <- function(url) {
 
 convert_coordinates_to_neighbourhood_sapo <- function(lon, lat) {
   if (is.na(lon) || is.na(lat)) return(NA_character_)
+
+  # Try GeoJSON point-in-polygon matching first
+  if (length(GEOJSON_NEIGHBOURHOODS) > 0) {
+    tryCatch({
+      for (geojson in GEOJSON_NEIGHBOURHOODS) {
+        point <- st_point(c(lon, lat))
+        point_sf <- st_sf(geometry = st_sfc(point), crs = 4326)
+        intersects <- st_intersects(point_sf, geojson, sparse = TRUE)[[1]]
+
+        if (length(intersects) > 0) {
+          feature_idx <- intersects[1]
+          neighbourhood <- geojson$NAME_3[feature_idx]
+          if (is.na(neighbourhood)) {
+            neighbourhood <- geojson$NAME_2[feature_idx]
+          }
+          if (!is.na(neighbourhood)) {
+            return(neighbourhood)
+          }
+        }
+      }
+    }, error = function(e) {
+      # If GeoJSON matching fails, fall back to OSM
+      NULL
+    })
+  }
+
+  # Fall back to OpenStreetMap reverse geocoding
   df     <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
   result <- reverse_geocode(df, lat = lat, long = lon,
                              method = "osm", full_results = TRUE)
