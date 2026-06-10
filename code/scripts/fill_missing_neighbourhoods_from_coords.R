@@ -15,6 +15,16 @@ get_con <- function() {
   )
 }
 
+safe_con <- function(con) {
+  tryCatch({
+    dbExecute(con, "SELECT 1")
+    return(con)
+  }, error = function(e) {
+    message("Connection lost, reconnecting...")
+    return(get_con())
+  })
+}
+
 convert_coordinates_to_neighbourhood <- function(lon, lat) {
   if (is.na(lon) || is.na(lat)) return(NA_character_)
   df <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
@@ -84,8 +94,9 @@ cat(sprintf("Found %d listings to backfill\n", nrow(missing_nbh)))
 
 if (nrow(missing_nbh) > 0) {
   # Reverse geocode each coordinate
-  cat("Reverse geocoding coordinates (this may take a few minutes)...\n")
+  cat(sprintf("Reverse geocoding %d coordinates (this may take a few minutes)...\n", nrow(missing_nbh)))
   missing_nbh$neighbourhood <- NA_character_
+  geocoded_count <- 0
 
   for (i in seq_len(nrow(missing_nbh))) {
     if (i %% 50 == 0) {
@@ -97,12 +108,17 @@ if (nrow(missing_nbh) > 0) {
         missing_nbh$lon[i],
         missing_nbh$lat[i]
       )
-      missing_nbh$neighbourhood[i] <- nbh
+      if (!is.na(nbh)) {
+        missing_nbh$neighbourhood[i] <- nbh
+        geocoded_count <- geocoded_count + 1
+      }
       Sys.sleep(1)  # be polite to OSM
     }, error = function(e) {
       cat(sprintf("Error geocoding row %d: %s\n", i, e$message))
     })
   }
+
+  cat(sprintf("Reverse geocoding complete: %d/%d returned a neighbourhood\n", geocoded_count, nrow(missing_nbh)))
 
   # Filter to rows that actually got a neighbourhood assigned
   filled <- missing_nbh[!is.na(missing_nbh$neighbourhood), ]
@@ -137,8 +153,9 @@ LIMIT 500
 cat(sprintf("Found %d rental listings to backfill\n", nrow(missing_rent)))
 
 if (nrow(missing_rent) > 0) {
-  cat("Reverse geocoding coordinates (this may take a few minutes)...\n")
+  cat(sprintf("Reverse geocoding %d coordinates (this may take a few minutes)...\n", nrow(missing_rent)))
   missing_rent$neighbourhood <- NA_character_
+  geocoded_count_rent <- 0
 
   for (i in seq_len(nrow(missing_rent))) {
     if (i %% 50 == 0) {
@@ -150,12 +167,17 @@ if (nrow(missing_rent) > 0) {
         missing_rent$lon[i],
         missing_rent$lat[i]
       )
-      missing_rent$neighbourhood[i] <- nbh
+      if (!is.na(nbh)) {
+        missing_rent$neighbourhood[i] <- nbh
+        geocoded_count_rent <- geocoded_count_rent + 1
+      }
       Sys.sleep(1)  # be polite to OSM
     }, error = function(e) {
       cat(sprintf("Error geocoding row %d: %s\n", i, e$message))
     })
   }
+
+  cat(sprintf("Reverse geocoding complete: %d/%d returned a neighbourhood\n", geocoded_count_rent, nrow(missing_rent)))
 
   filled_rent <- missing_rent[!is.na(missing_rent$neighbourhood), ]
 
