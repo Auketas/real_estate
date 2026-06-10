@@ -100,6 +100,14 @@ if (length(geojsons) == 0) {
   stop("Cannot proceed without GeoJSON files")
 }
 
+# Verify GeoJSON files loaded and show basic info
+cat("\nGeoJSON files loaded:\n")
+for (name in names(geojsons)) {
+  bounds <- st_bbox(geojsons[[name]])
+  cat(sprintf("  %s: %d features, bounds (%.2f,%.2f) to (%.2f,%.2f)\n",
+    name, nrow(geojsons[[name]]), bounds[1], bounds[2], bounds[3], bounds[4]))
+}
+
 safe_update <- function(con, table_name, nbh_id_pairs) {
   if (nrow(nbh_id_pairs) == 0) return(0)
 
@@ -222,7 +230,7 @@ if (nrow(missing_rent) > 0) {
     }
 
     if (!is.null(geojson)) {
-      nbh <- match_point_to_neighbourhood(lon, lat, geojson, mapping, city)
+      nbh <- match_point_to_neighbourhood(lon, lat, geojson)
       if (!is.na(nbh)) {
         missing_rent$neighbourhood[i] <- nbh
         matched_count <- matched_count + 1
