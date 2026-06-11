@@ -11,21 +11,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up R
-        uses: r-lib/actions/setup-r@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          r-version: '4.3'
+          python-version: '3.10'
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgdal-dev libproj-dev libgeos-dev libudunits2-dev udunits2
-
-      - name: Install R packages
-        run: |
-          options(repos = c(r4geo = 'https://r4geo.r-universe.dev', CRAN = 'https://cloud.r-project.org'))
-          install.packages(c('DBI', 'RPostgres', 'sf', 'dplyr'))
-        shell: Rscript {0}
+      - name: Install dependencies
+        run: pip install psycopg2-binary shapely
 
       - name: Backfill neighbourhoods via spatial join
         env:
@@ -33,4 +25,4 @@ jobs:
           NEON_HOST: ${{ secrets.NEON_HOST }}
           NEON_USER: ${{ secrets.NEON_USER }}
           NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
-        run: Rscript code/scripts/backfill_neighbourhoods_spatial_join.R
+        run: python code/scripts/backfill_neighbourhoods_spatial_join.py
