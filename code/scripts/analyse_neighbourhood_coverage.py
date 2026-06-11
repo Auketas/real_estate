@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
 """
-Analyse neighbourhood coverage in the real estate database.
+Analyse neighbourhood coverage by checking if neighbourhoods match actual GeoJSON polygons.
 
-Checks:
-1. What percentage of listings have NULL/empty neighbourhood
-2. What percentage of listings have a neighbourhood that can't be matched to GeoJSON polygons
-
-The script loads all GeoJSON files (used by the dashboard for maps), extracts the features
-available in each region, and checks if each database neighbourhood is present.
-
-Regions are mapped as follows:
-- Porto, Matosinhos, Vila Nova de Gaia, Maia: porto_region.geojson
-- Lisboa, Cascais, Sintra: lisboa_region.geojson
-- Almada: almada.geojson
-- Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão: algarve.geojson (uses NAME_2)
+Shows per region:
+- % of listings with NULL neighbourhood
+- % of listings whose neighbourhood is an actual polygon name from the GeoJSON
+- % of listings whose neighbourhood doesn't exist in the GeoJSON (data issue)
 """
 
 import json
@@ -32,7 +24,6 @@ conn = psycopg2.connect(
 )
 
 # Map regions to their GeoJSON files and cities
-# Note: cities list includes both hyphenated and underscore variants as they appear in the database
 REGION_CONFIG = {
     'porto': {
         'geojson': 'dashboard/static/porto_region.geojson',
@@ -56,22 +47,31 @@ REGION_CONFIG = {
     }
 }
 
-# Load neighbourhood lookup mapping scraper names to GeoJSON features
-with open('dashboard/static/neighbourhood_lookup.json') as f:
-    LOOKUP = json.load(f)
+# ============================================================================
+# Extract polygon names from GeoJSON files
+# ============================================================================
+print("\n" + "=" * 80)
+print("LOADING GEOJSON POLYGON NAMES")
+print("=" * 80)
 
-# Extract available features from all GeoJSON files
-GEOJSON_FEATURES = {}
+POLYGON_NAMES = {}  # region -> set of polygon names
+
 for region, config in REGION_CONFIG.items():
-    with open(config['geojson']) as f:
-        geojson = json.load(f)
-    features = set()
-    for feature in geojson['features']:
-        name = feature['properties'].get(config['feature_key'])
-        if name:
-            features.add(name)
-    GEOJSON_FEATURES[region] = features
-    print(f"\n{region.upper()}: {len(features)} GeoJSON features loaded")
+    filepath = config['geojson']
+    if os.path.exists(filepath):
+        with open(filepath, encoding='utf-8') as f:
+            geojson = json.load(f)
+
+        names = set()
+        for feature in geojson['features']:
+            name = feature['properties'].get(config['feature_key'])
+            if name:
+                names.add(name)
+
+        POLYGON_NAMES[region] = names
+        print(f"✓ {region}: {len(names)} polygons")
+    else:
+        print(f"✗ {region}: GeoJSON file not found")
 
 
 def get_city_region(city):
@@ -85,9 +85,9 @@ def get_city_region(city):
 # ============================================================================
 # CHECK 1: NULL/EMPTY NEIGHBOURHOODS
 # ============================================================================
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("CHECK 1: LISTINGS WITH NULL/EMPTY NEIGHBOURHOOD")
-print("="*80)
+print("=" * 80)
 
 cur = conn.cursor()
 
@@ -130,13 +130,13 @@ print(f"  NULL/empty: {combined_null:,} ({combined_pct:.2f}%)")
 
 
 # ============================================================================
-# CHECK 2: NEIGHBOURHOODS NOT MATCHING GEOJSON FEATURES
+# CHECK 2: NEIGHBOURHOODS MATCHING ACTUAL GEOJSON POLYGONS
 # ============================================================================
-print("\n" + "="*80)
-print("CHECK 2: LISTINGS WITH UNMATCHED NEIGHBOURHOODS (not in GeoJSON)")
-print("="*80)
+print("\n" + "=" * 80)
+print("CHECK 2: NEIGHBOURHOODS MATCHING GEOJSON POLYGONS (per region)")
+print("=" * 80)
 
-# Get all unique neighbourhoods from database
+# Get all unique (neighbourhood, city) pairs
 cur.execute("""
 SELECT DISTINCT neighbourhood, city
 FROM (
@@ -151,35 +151,7 @@ neighbourhoods_by_city = defaultdict(list)
 for neighbourhood, city in cur.fetchall():
     neighbourhoods_by_city[city].append(neighbourhood)
 
-# Check which ones can't be matched to GeoJSON
-unmatched_by_city = {}
-matched_by_city = {}
-
-for city, neighbourhoods in neighbourhoods_by_city.items():
-    region = get_city_region(city)
-    if not region:
-        print(f"\n⚠️  UNKNOWN REGION for city: {city}")
-        continue
-
-    matched = []
-    unmatched = []
-
-    for neighbourhood in neighbourhoods:
-        # Check if neighbourhood is in lookup
-        if neighbourhood in LOOKUP:
-            geojson_name = LOOKUP[neighbourhood]
-            # Check if the mapped GeoJSON feature exists
-            if geojson_name in GEOJSON_FEATURES[region]:
-                matched.append(neighbourhood)
-            else:
-                unmatched.append((neighbourhood, f"lookup maps to '{geojson_name}' which doesn't exist in GeoJSON"))
-        else:
-            unmatched.append((neighbourhood, "not in lookup.json"))
-
-    matched_by_city[city] = matched
-    unmatched_by_city[city] = unmatched
-
-# Count listings per neighbourhood
+# Count listings per neighbourhood+city
 cur.execute("""
 SELECT neighbourhood, city,
        (SELECT COUNT(*) FROM ads_buy WHERE is_active = 1 AND city = t.city AND neighbourhood = t.neighbourhood) +
@@ -198,81 +170,110 @@ listing_counts = {}
 for neighbourhood, city, count in cur.fetchall():
     listing_counts[(neighbourhood, city)] = count
 
-# Report by city
-print("\nSUMMARY BY CITY:")
+# Analyze per region
+print("\nSUMMARY BY REGION:")
 print("-" * 80)
 
-total_matched = 0
-total_unmatched = 0
-total_matched_listings = 0
-total_unmatched_listings = 0
+region_stats = {}
 
-for city in sorted(neighbourhoods_by_city.keys()):
-    region = get_city_region(city)
-    if not region:
-        continue
+for region, config in REGION_CONFIG.items():
+    polygon_names = POLYGON_NAMES.get(region, set())
+    cities = config['cities']
 
-    matched = matched_by_city[city]
-    unmatched = unmatched_by_city[city]
+    matched_neighbourhoods = 0
+    unmatched_neighbourhoods = 0
+    matched_listings = 0
+    unmatched_listings = 0
 
-    matched_count = sum(listing_counts.get((n, city), 0) for n in matched)
-    unmatched_count = sum(listing_counts.get((n, city), 0) for n, _ in unmatched)
+    region_city_stats = {}
 
-    matched_pct = 100.0 * matched_count / (matched_count + unmatched_count) if (matched_count + unmatched_count) > 0 else 0
+    for city in cities:
+        if city not in neighbourhoods_by_city:
+            continue
 
-    print(f"\n{city.upper()} (region: {region})")
-    print(f"  Matched neighbourhoods: {len(matched)}")
-    print(f"  Unmatched neighbourhoods: {len(unmatched)}")
-    if matched_count + unmatched_count > 0:
-        print(f"  Matched listings: {matched_count:,} ({matched_pct:.1f}%)")
-        print(f"  Unmatched listings: {unmatched_count:,} ({100-matched_pct:.1f}%)")
+        city_matched = 0
+        city_unmatched = 0
+        city_matched_list = 0
+        city_unmatched_list = 0
 
-    total_matched += len(matched)
-    total_unmatched += len(unmatched)
-    total_matched_listings += matched_count
-    total_unmatched_listings += unmatched_count
+        for neighbourhood in neighbourhoods_by_city[city]:
+            count = listing_counts.get((neighbourhood, city), 0)
 
-    # Show unmatched neighbourhoods if any
-    if unmatched:
-        print(f"  Unmatched: {', '.join([n for n, _ in unmatched[:5]])}" +
-              ("..." if len(unmatched) > 5 else ""))
+            if neighbourhood in polygon_names:
+                city_matched += 1
+                city_matched_list += count
+            else:
+                city_unmatched += 1
+                city_unmatched_list += count
 
-print("\n" + "="*80)
+        matched_neighbourhoods += city_matched
+        unmatched_neighbourhoods += city_unmatched
+        matched_listings += city_matched_list
+        unmatched_listings += city_unmatched_list
+
+        region_city_stats[city] = {
+            'matched_neighbourhoods': city_matched,
+            'unmatched_neighbourhoods': city_unmatched,
+            'matched_listings': city_matched_list,
+            'unmatched_listings': city_unmatched_list
+        }
+
+    region_stats[region] = {
+        'matched_neighbourhoods': matched_neighbourhoods,
+        'unmatched_neighbourhoods': unmatched_neighbourhoods,
+        'matched_listings': matched_listings,
+        'unmatched_listings': unmatched_listings,
+        'city_stats': region_city_stats,
+        'polygon_count': len(polygon_names)
+    }
+
+    total_neighbourhoods = matched_neighbourhoods + unmatched_neighbourhoods
+    total_listings = matched_listings + unmatched_listings
+
+    print(f"\n{region.upper()}")
+    print(f"  GeoJSON polygons available: {len(polygon_names)}")
+    print(f"  Neighbourhoods in data: {total_neighbourhoods}")
+    print(f"    → Matching GeoJSON: {matched_neighbourhoods} ({100.0 * matched_neighbourhoods / total_neighbourhoods if total_neighbourhoods > 0 else 0:.1f}%)")
+    print(f"    → Not in GeoJSON: {unmatched_neighbourhoods} ({100.0 * unmatched_neighbourhoods / total_neighbourhoods if total_neighbourhoods > 0 else 0:.1f}%)")
+
+    if total_listings > 0:
+        print(f"  Listings: {total_listings:,}")
+        print(f"    → In matched neighbourhoods: {matched_listings:,} ({100.0 * matched_listings / total_listings:.1f}%)")
+        print(f"    → In unmatched neighbourhoods: {unmatched_listings:,} ({100.0 * unmatched_listings / total_listings:.1f}%)")
+
+    # Show city breakdown
+    if region_city_stats:
+        print(f"  By city:")
+        for city in sorted(region_city_stats.keys()):
+            stats = region_city_stats[city]
+            city_total = stats['matched_listings'] + stats['unmatched_listings']
+            if city_total > 0:
+                city_matched_pct = 100.0 * stats['matched_listings'] / city_total
+                print(f"    {city:20s}: {stats['matched_listings']:6,} matched ({city_matched_pct:5.1f}%) / {stats['unmatched_listings']:6,} unmatched")
+
+
+# ============================================================================
+# OVERALL SUMMARY
+# ============================================================================
+print("\n" + "=" * 80)
 print("OVERALL SUMMARY")
-print("="*80)
+print("=" * 80)
 
-print(f"\n⚠️  NEIGHBOURHOOD-LEVEL MATCHING (less relevant):")
-print(f"  Unique neighbourhoods: {total_matched + total_unmatched}")
-print(f"  Matched to GeoJSON features: {total_matched}")
-print(f"  Unmatched: {total_unmatched}")
-if total_matched + total_unmatched > 0:
-    print(f"  Match rate: {100.0 * total_matched / (total_matched + total_unmatched):.1f}%")
+total_with_neighbourhood = sum(r['matched_listings'] + r['unmatched_listings'] for r in region_stats.values())
+total_matched = sum(r['matched_listings'] for r in region_stats.values())
+total_unmatched = sum(r['unmatched_listings'] for r in region_stats.values())
 
-print(f"\n✓ LISTING-LEVEL MATCHING (what matters for the dashboard):")
-total_with_neighbourhood = total_matched_listings + total_unmatched_listings
-mapped_pct = 100.0 * total_matched_listings / total_with_neighbourhood if total_with_neighbourhood > 0 else 0
-unmapped_pct = 100.0 * total_unmatched_listings / total_with_neighbourhood if total_with_neighbourhood > 0 else 0
+print(f"\nListings with neighbourhood assigned: {total_with_neighbourhood:,}")
+if total_with_neighbourhood > 0:
+    print(f"  → In GeoJSON polygons: {total_matched:,} ({100.0 * total_matched / total_with_neighbourhood:.1f}%)")
+    print(f"  → Not in GeoJSON: {total_unmatched:,} ({100.0 * total_unmatched / total_with_neighbourhood:.1f}%)")
 
-print(f"  Total listings with neighbourhood assigned: {total_with_neighbourhood:,}")
-print(f"    → Can be displayed on dashboard maps: {total_matched_listings:,} ({mapped_pct:.1f}%)")
-print(f"    → Cannot be displayed (unmatched neighbourhood): {total_unmatched_listings:,} ({unmapped_pct:.1f}%)")
+print(f"\nListings with NULL neighbourhood: {combined_null:,} ({combined_pct:.2f}%)")
 
-print(f"\n  Total listings with NULL neighbourhood: {combined_null:,} ({combined_pct:.2f}%)")
-print(f"\n  TOTAL LISTINGS MISSING FROM MAPS: {combined_null + total_unmatched_listings:,} ({100.0 * (combined_null + total_unmatched_listings) / (combined_null + total_with_neighbourhood):.1f}%)")
-
-# Show most problematic unmatched neighbourhoods
-print("\n" + "="*80)
-print("MOST IMPACTFUL UNMATCHED NEIGHBOURHOODS (by listing count)")
-print("="*80)
-
-impact_list = []
-for city, unmatched_list in unmatched_by_city.items():
-    for neighbourhood, reason in unmatched_list:
-        count = listing_counts.get((neighbourhood, city), 0)
-        impact_list.append((count, city, neighbourhood, reason))
-
-impact_list.sort(reverse=True)
-for count, city, neighbourhood, reason in impact_list[:20]:
-    print(f"{count:5d} listings  |  {city:15s}  |  {neighbourhood:30s}  ({reason})")
+grand_total = combined_null + total_with_neighbourhood
+if grand_total > 0:
+    print(f"\nTOTAL LISTINGS MISSING FROM POLYGON MAPS:")
+    missing = combined_null + total_unmatched
+    print(f"  {missing:,} ({100.0 * missing / grand_total:.1f}%)")
 
 conn.close()
