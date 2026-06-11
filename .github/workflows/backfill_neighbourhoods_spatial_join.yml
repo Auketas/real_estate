@@ -19,10 +19,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgdal-dev libproj-dev libgeos-dev libudunits2-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgdal-dev libproj-dev libgeos-dev libudunits2-dev udunits2
 
       - name: Install R packages
         run: |
+          options(repos = c(r4geo = 'https://r4geo.r-universe.dev', CRAN = 'https://cloud.r-project.org'))
           install.packages(c('DBI', 'RPostgres', 'sf', 'dplyr'))
         shell: Rscript {0}
 
