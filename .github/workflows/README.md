@@ -83,6 +83,23 @@ This file describes what each workflow does and when it runs. All workflows use 
 
 ---
 
+## Neighbourhood Backfill (Data Fix)
+
+### 18. **Backfill Neighbourhoods (Spatial Join)** (`backfill_neighbourhoods_spatial_join.yml`)
+- **What:** Updates ALL listings in the database by doing spatial join (point-in-polygon) on their lon/lat coordinates
+- **When:** Manual trigger only (workflow_dispatch)
+- **Process:**
+  1. Loads all GeoJSON files (porto_region, lisboa_region, algarve, almada)
+  2. For each listing with valid coordinates, finds which polygon it's inside
+  3. Assigns the polygon's NAME_3 (parishes for Porto/Lisboa) or NAME_2 (municipalities for Algarve) as the neighbourhood
+  4. Updates the database
+- **Output:** Summary showing how many listings were matched to polygons
+- **Use case:** One-time backfill or periodic refresh. Use same spatial matching logic as the scrapers use for new listings.
+- **Expected result:** Significantly improves neighbourhood mapping rate (typically 30%+ → 90%+)
+- **Notes:** Unmatched listings are those whose coordinates fall outside all GeoJSON polygons (e.g., invalid coordinates, ocean locations)
+
+---
+
 ## Neighbourhood Mapping (One-off / Diagnostic)
 
 These workflows were created during Phase 7b (neighbourhood matching) and typically run once manually to diagnose or fix data issues. They are not scheduled.

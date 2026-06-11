@@ -6,6 +6,14 @@ This document defines the agreed design direction, page structure, visual langua
 
 ---
 
+## ⚠️ Important for Claude Code
+
+**Whenever you add, modify, or remove a GitHub Actions workflow**, please update `.github/workflows/README.md` with a description of what the workflow does, when it runs, and what it touches. The README is the single source of truth for the list of all workflows in this repo.
+
+---
+
+---
+
 ## Target Audience
 
 Primary: expats and foreigners considering relocating to or buying property in Portugal. They are making a high-stakes personal decision, not doing professional investment analysis. The tone and design should feel like a trusted local guide, not a financial terminal.
