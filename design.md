@@ -596,38 +596,28 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [ ] **What's inside** (paid features preview): Deferred to Phase 10 (after price calculators & neighbourhood pages built). Build with real working screenshots/demo video so preview accurately reflects final product.
 - [ ] **Market pulse** (deferred): Optional auto-generated summary text. Low priority — skip for now.
 
-#### 7d — Neighbourhood Deep-Dive page (Page 2, paid) ✓ COMPLETE
+#### 7d — Neighbourhood Deep-Dive page (Page 2, paid) — IN PROGRESS
 
-**Geographic structure:**
-Four regions, each with different map granularity:
+**Page structure (reordered for product importance):**
 
-| Region selector | Map shows | GeoJSON source |
-|---|---|---|
-| Porto | Parish polygons for Porto + VNG + Matosinhos + Maia (49+ polygons) | GADM level 3 |
-| Lisboa | Parish polygons for Lisboa + Cascais + Sintra (79 polygons) | GADM level 3 |
-| Almada | Single municipality polygon | Custom GeoJSON |
-| Algarve | Municipality polygons for 6 cities + neighbourhood bar chart below | GADM level 2 |
+1. **Region & type selector** — Choose region (Porto/Lisboa/Setúbal/Algarve) and buy/rent toggle
+2. **Interactive choropleth map** — Neighbourhood-level price visualization (cream → terracotta by €/m²)
+3. **Price calculator** ✓ NOW PRIMARY FEATURE
+   - Optional inputs: neighbourhood, property type, area, new build, garden, parking, terrace, balcony
+   - Output: estimated price with 95% confidence interval shown as visual band (━━━●━━━)
+   - Band width dynamically widens/narrows based on features specified
+   - Helper text: "Add more details to narrow the estimate"
+4. **Neighbourhood browse** (secondary) — Bar chart showing all neighbourhoods for reference/filtering
 
-- [x] GeoJSON files sourced from GADM 4.1 via `code/scripts/fetch_boundaries.py`; saved to `dashboard/static/`
-- [x] `dashboard/static/neighbourhood_lookup.json` — expanded from 167 to 186 entries mapping scraper names → GeoJSON NAME_3 feature names
-  - [x] Added 18 high-confidence fuzzy matches (encoding issues)
-  - [x] Added Sintra fallback mapping
-  - [ ] **PENDING**: Manually map remaining ~106 unmatched neighbourhoods in Porto/Lisboa (see `mapping_review_guide.md`)
-    - 20 unmatched in Lisboa, 86 in Porto, 3 in Gaia
-    - 68 empty GeoJSON features identified (parishes with no data — consider for future scraper expansion)
+**Technical details:**
+- [x] GeoJSON files sourced from GADM 4.1; saved to `dashboard/static/`
 - [x] Choropleth built with `choropleth_mapbox`, cream → terracotta colour scale by median price per m²
-  - [x] Improved hover display: fixed neighbourhood name spacing ("LordeloDoOuro" → "Lordelo Do Ouro")
-  - [x] Removed listing count from hovers (confusing)
-  - [x] Added price rounding (:.0f format)
-- [x] Multiple DB neighbourhoods mapping to the same parish are aggregated by listing-count-weighted average
-- [x] Algarve: city-level choropleth (6 municipality polygons) + per-city neighbourhood bar chart below
-  - [x] Added avg days on market and most common property type to Algarve breakdown
-  - [x] Updated messaging: "long-term rentals are too rare in this region to reliably analyze"
-- [x] Bar chart retained below choropleth for all regions (shows all neighbourhoods including unmatched)
-- [x] Caption shows % of neighbourhoods matched to map polygons
-- [x] `get_region_neighbourhood_summary()` added to `db.py` for multi-city queries
-- [x] Added Maia to Porto region
-- [x] Added Almada as standalone region (city-level only, pending GeoJSON enhancement)
+- [x] Hover display: fixed neighbourhood name spacing, removed listing counts
+- [x] Multiple DB neighbourhoods aggregated by listing-count-weighted average
+- [x] Algarve: city-level choropleth + neighbourhood breakdown (no calculator — buy-only, no rental model)
+- [x] Price calculator uses precomputed monthly model coefficients, marginalizes unspecified features
+- [x] Confidence intervals computed from model residual_std_error + feature uncertainty
+- [x] Added Maia to Porto region, Almada/Costa da Caparica/Caparica to Setúbal region
 
 #### 7e — Investment View page (Page 3, paid) ✓ COMPLETE
 - [x] Horizontal bar chart for gross yield: discrete colour bands (< 3% red / 3–5% amber / > 5% green), dashed 5% benchmark line, caption explaining calculation and data scope
@@ -693,11 +683,12 @@ Four regions, each with different map granularity:
   - [ ] Monthly trend: time series of predicted price for the same inputs across stored monthly coefficients
   - [ ] Show listing count that informed the estimate
   - [ ] Show % change vs prior month and vs 6 months ago
-- [ ] Build rental yield calculator (Page 3) — Lisboa and Porto only:
-  - [ ] Same optional-input structure as buy calculator
-  - [ ] Output: estimated buy price, estimated monthly rent, gross yield %
-  - [ ] Show trend in yield over available monthly history
-  - [ ] Display caveat: gross yield only, net yield will be lower after taxes, vacancy, maintenance
+✓ **Rental yield calculator (Investment View, Page 3):**
+  - [x] Restricted to rental-available cities (Lisboa, Porto, Setúbal, Cascais, Sintra, Maia, Gaia, Almada, Costa da Caparica, Caparica)
+  - [x] Same optional inputs as buy calculator
+  - [x] Output: estimated buy price | estimated monthly rent | gross yield %
+  - [x] Caveat: "Gross yield only. Net yield will be lower after taxes, vacancy, maintenance."
+  - [ ] **TODO**: Historical yield trend chart
 
 ---
 

@@ -190,8 +190,129 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Secondary bar chart — all neighbourhoods including unmatched
-    st.subheader(f"Price per m² by neighbourhood — {region}")
+    # ── Price Calculator ───────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("Price Calculator")
+
+    # Get latest snapshot month from city summary
+    df_latest = get_city_summary(listing_type=type_key)
+    latest_month = df_latest["snapshot_month"].max() if not df_latest.empty else None
+
+    if latest_month is None:
+        st.warning("Model data not yet available. Run monthly aggregation first.")
+    else:
+        # Fetch model data for the selected region's cities
+        first_city = cfg["cities"][0]
+
+        coef = get_model_coefficients(first_city, type_key, latest_month)
+        metadata = get_model_metadata(first_city, type_key, latest_month)
+        feature_stats = get_model_feature_stats(first_city, type_key, latest_month)
+
+        if coef.empty or metadata.empty:
+            st.warning(f"No model available for {region} ({type_key})")
+        else:
+            # Get available options
+            available_neighbourhoods = get_available_neighbourhoods(coef)
+            available_tipologias = get_available_tipologias(coef)
+
+            # Input section
+            st.write("Specify property details (all fields optional):")
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                neighbourhood = st.selectbox(
+                    "Neighbourhood",
+                    [None] + available_neighbourhoods,
+                    format_func=lambda x: "Select neighbourhood" if x is None else x,
+                    key="calc_neighbourhood"
+                )
+
+            with col2:
+                tipologia = st.selectbox(
+                    "Property type",
+                    [None] + available_tipologias,
+                    format_func=lambda x: "Select type" if x is None else x,
+                    key="calc_tipologia"
+                )
+
+            with col3:
+                area = st.number_input(
+                    "Area (m²)",
+                    min_value=0,
+                    max_value=500,
+                    value=None,
+                    step=10,
+                    key="calc_area"
+                )
+
+            # Feature toggles
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                novo = st.checkbox("New build", key="calc_novo")
+            with col2:
+                jardim = st.checkbox("Garden", key="calc_jardim")
+            with col3:
+                garagem = st.checkbox("Parking", key="calc_garagem")
+            with col4:
+                terraco = st.checkbox("Terrace", key="calc_terraco")
+            with col5:
+                varanda = st.checkbox("Balcony", key="calc_varanda")
+
+            # Build inputs dict (None for unspecified)
+            inputs = {
+                "neighbourhood": neighbourhood,
+                "tipologia": tipologia,
+                "area": area if area and area > 0 else None,
+                "novo": 1 if novo else None,
+                "jardim": 1 if jardim else None,
+                "garagem": 1 if garagem else None,
+                "terraco": 1 if terraco else None,
+                "varanda": 1 if varanda else None,
+            }
+
+            # Calculate
+            result = predict_price(inputs, coef, feature_stats, metadata)
+
+            if "error" in result:
+                st.error(result["error"])
+            else:
+                # Display result with visual band
+                predicted_price = result["predicted_price"]
+                ci_lower = result["ci_lower"]
+                ci_upper = result["ci_upper"]
+
+                # Main price display
+                st.write("")
+                price_col, range_col = st.columns([1, 2])
+
+                with price_col:
+                    st.metric(
+                        "Estimated price",
+                        fmt_price(predicted_price)
+                    )
+
+                with range_col:
+                    # Visual confidence band
+                    st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
+
+                    # Simple ASCII representation of the band
+                    range_width = ci_upper - ci_lower
+                    normalized_point = (predicted_price - ci_lower) / range_width if range_width > 0 else 0.5
+                    bar_length = 50
+                    bar_pos = int(normalized_point * bar_length)
+                    bar = "━" * bar_pos + "●" + "━" * (bar_length - bar_pos)
+                    st.code(bar, language=None)
+
+                # Helper text
+                if any(v is None for v in inputs.values() if k != "neighbourhood" and k != "tipologia" for k in []):
+                    st.caption("💡 Add more details to narrow the estimate")
+
+                st.write("")
+
+    # ── Neighbourhood Browse (Secondary) ────────────────────────────────────────
+    st.divider()
+    st.subheader(f"Browse neighbourhoods — {region}")
     df_nbhd["ppm2_display"] = df_nbhd["median_price_per_m2"] * rate
     fig_bar = px.bar(
         df_nbhd.sort_values("ppm2_display", ascending=False),
@@ -202,126 +323,3 @@ else:
     )
     fig_bar.update_xaxes(tickangle=45)
     st.plotly_chart(fig_bar, use_container_width=True)
-
-
-# ── Price Calculator ──────────────────────────────────────────────────────────
-
-st.divider()
-st.subheader("Price Calculator")
-
-# Get latest snapshot month from city summary
-df_latest = get_city_summary(listing_type=type_key)
-latest_month = df_latest["snapshot_month"].max() if not df_latest.empty else None
-
-if latest_month is None:
-    st.warning("Model data not yet available. Run monthly aggregation first.")
-else:
-    # Fetch model data for the selected region's cities
-    # Try to load for the first city in the region (they should all have the same model by listing_type)
-    first_city = cfg["cities"][0]
-
-    coef = get_model_coefficients(first_city, type_key, latest_month)
-    metadata = get_model_metadata(first_city, type_key, latest_month)
-    feature_stats = get_model_feature_stats(first_city, type_key, latest_month)
-
-    if coef.empty or metadata.empty:
-        st.warning(f"No model available for {region} ({type_key})")
-    else:
-        # Get available options
-        available_neighbourhoods = get_available_neighbourhoods(coef)
-        available_tipologias = get_available_tipologias(coef)
-
-        # Input section
-        st.write("Specify property details (all fields optional):")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            neighbourhood = st.selectbox(
-                "Neighbourhood",
-                [None] + available_neighbourhoods,
-                format_func=lambda x: "Select neighbourhood" if x is None else x,
-                key="calc_neighbourhood"
-            )
-
-        with col2:
-            tipologia = st.selectbox(
-                "Property type",
-                [None] + available_tipologias,
-                format_func=lambda x: "Select type" if x is None else x,
-                key="calc_tipologia"
-            )
-
-        with col3:
-            area = st.number_input(
-                "Area (m²)",
-                min_value=0,
-                max_value=500,
-                value=None,
-                step=10,
-                key="calc_area"
-            )
-
-        # Feature toggles
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            novo = st.checkbox("New build", key="calc_novo")
-        with col2:
-            jardim = st.checkbox("Garden", key="calc_jardim")
-        with col3:
-            garagem = st.checkbox("Parking", key="calc_garagem")
-        with col4:
-            terraco = st.checkbox("Terrace", key="calc_terraco")
-        with col5:
-            varanda = st.checkbox("Balcony", key="calc_varanda")
-
-        # Build inputs dict (None for unspecified)
-        inputs = {
-            "neighbourhood": neighbourhood,
-            "tipologia": tipologia,
-            "area": area if area and area > 0 else None,
-            "novo": 1 if novo else None,
-            "jardim": 1 if jardim else None,
-            "garagem": 1 if garagem else None,
-            "terraco": 1 if terraco else None,
-            "varanda": 1 if varanda else None,
-        }
-
-        # Calculate
-        result = predict_price(inputs, coef, feature_stats, metadata)
-
-        if "error" in result:
-            st.error(result["error"])
-        else:
-            # Display result with visual band
-            predicted_price = result["predicted_price"]
-            ci_lower = result["ci_lower"]
-            ci_upper = result["ci_upper"]
-
-            # Main price display
-            st.write("")
-            price_col, range_col = st.columns([1, 2])
-
-            with price_col:
-                st.metric(
-                    "Estimated price",
-                    fmt_price(predicted_price)
-                )
-
-            with range_col:
-                # Visual confidence band
-                st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
-
-                # Simple ASCII representation of the band
-                range_width = ci_upper - ci_lower
-                normalized_point = (predicted_price - ci_lower) / range_width if range_width > 0 else 0.5
-                bar_length = 50
-                bar_pos = int(normalized_point * bar_length)
-                bar = "━" * bar_pos + "●" + "━" * (bar_length - bar_pos)
-                st.code(bar, language=None)
-
-            # Helper text
-            if any(v is None for v in inputs.values() if k != "neighbourhood" and k != "tipologia" for k in []):
-                st.caption("💡 Add more details to narrow the estimate")
-
-            st.write("")
