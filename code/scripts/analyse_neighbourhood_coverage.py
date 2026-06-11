@@ -32,10 +32,11 @@ conn = psycopg2.connect(
 )
 
 # Map regions to their GeoJSON files and cities
+# Note: cities list includes both hyphenated and underscore variants as they appear in the database
 REGION_CONFIG = {
     'porto': {
         'geojson': 'dashboard/static/porto_region.geojson',
-        'cities': ['porto', 'matosinhos', 'vila_nova_de_gaia', 'maia'],
+        'cities': ['porto', 'matosinhos', 'vila_nova_de_gaia', 'vila-nova-de-gaia', 'maia'],
         'feature_key': 'NAME_3'
     },
     'lisboa': {
@@ -50,7 +51,7 @@ REGION_CONFIG = {
     },
     'algarve': {
         'geojson': 'dashboard/static/algarve.geojson',
-        'cities': ['albufeira', 'faro', 'lagoa', 'lagos', 'loule', 'portimao'],
+        'cities': ['albufeira', 'faro', 'lagoa', 'lagos', 'loule', 'loulé', 'portimao', 'portimão'],
         'feature_key': 'NAME_2'
     }
 }
@@ -240,17 +241,24 @@ print("\n" + "="*80)
 print("OVERALL SUMMARY")
 print("="*80)
 
-print(f"\nNeighbourhoods:")
-print(f"  Total unique: {total_matched + total_unmatched}")
-print(f"  Matched to GeoJSON: {total_matched}")
+print(f"\n⚠️  NEIGHBOURHOOD-LEVEL MATCHING (less relevant):")
+print(f"  Unique neighbourhoods: {total_matched + total_unmatched}")
+print(f"  Matched to GeoJSON features: {total_matched}")
 print(f"  Unmatched: {total_unmatched}")
 if total_matched + total_unmatched > 0:
     print(f"  Match rate: {100.0 * total_matched / (total_matched + total_unmatched):.1f}%")
 
-print(f"\nListings:")
-print(f"  Total (non-NULL): {total_matched_listings + total_unmatched_listings:,}")
-print(f"  Can be mapped to GeoJSON polygons: {total_matched_listings:,} ({100.0 * total_matched_listings / (total_matched_listings + total_unmatched_listings) if (total_matched_listings + total_unmatched_listings) > 0 else 0:.1f}%)")
-print(f"  Cannot be mapped: {total_unmatched_listings:,} ({100.0 * total_unmatched_listings / (total_matched_listings + total_unmatched_listings) if (total_matched_listings + total_unmatched_listings) > 0 else 0:.1f}%)")
+print(f"\n✓ LISTING-LEVEL MATCHING (what matters for the dashboard):")
+total_with_neighbourhood = total_matched_listings + total_unmatched_listings
+mapped_pct = 100.0 * total_matched_listings / total_with_neighbourhood if total_with_neighbourhood > 0 else 0
+unmapped_pct = 100.0 * total_unmatched_listings / total_with_neighbourhood if total_with_neighbourhood > 0 else 0
+
+print(f"  Total listings with neighbourhood assigned: {total_with_neighbourhood:,}")
+print(f"    → Can be displayed on dashboard maps: {total_matched_listings:,} ({mapped_pct:.1f}%)")
+print(f"    → Cannot be displayed (unmatched neighbourhood): {total_unmatched_listings:,} ({unmapped_pct:.1f}%)")
+
+print(f"\n  Total listings with NULL neighbourhood: {combined_null:,} ({combined_pct:.2f}%)")
+print(f"\n  TOTAL LISTINGS MISSING FROM MAPS: {combined_null + total_unmatched_listings:,} ({100.0 * (combined_null + total_unmatched_listings) / (combined_null + total_with_neighbourhood):.1f}%)")
 
 # Show most problematic unmatched neighbourhoods
 print("\n" + "="*80)
