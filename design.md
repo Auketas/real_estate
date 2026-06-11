@@ -593,8 +593,8 @@ Work through these phases sequentially. Complete and verify each phase before st
   - [x] Add Maia and Almada with proper coordinates and climate data
 - [x] Price per m² and time-on-market bar charts (absorbed from City Comparison page)
 - [x] `1_Market_Overview.py` and `2_City_Comparison.py` removed; replaced by `1_Explorer.py`
-- [ ] **What's inside** (paid features preview): Two cards side-by-side showing Neighbourhood Deep-Dive and Investment View with static screenshots and prominent Subscribe button (currently deferred to Phase 9)
-- [ ] **Market pulse** (deferred): 2–3 auto-generated plain-English sentences summarising the data — most expensive city, listing count leader, longest time on market. Template-driven, no LLM. Add in a later pass once the page is visually verified.
+- [ ] **What's inside** (paid features preview): Deferred to Phase 10 (after price calculators & neighbourhood pages built). Build with real working screenshots/demo video so preview accurately reflects final product.
+- [ ] **Market pulse** (deferred): Optional auto-generated summary text. Low priority — skip for now.
 
 #### 7d — Neighbourhood Deep-Dive page (Page 2, paid) ✓ COMPLETE
 
@@ -766,20 +766,20 @@ Four regions, each with different map granularity:
 
 ### Implementation Roadmap (Remaining)
 
-**Complete in this order** (Phase 7 → 8 → 10 → 9):
+**Complete in this order** (Phase 8 → 10 → 7 finish → 9):
 
-1. **Phase 7 (Visual sprint) — Finish:**
-   - [ ] Market pulse: auto-generated 2–3 sentence summary on Explorer page
-   - [ ] What's inside preview: card section on Explorer with static screenshots + Subscribe CTA
-
-2. **Phase 8 (Price calculators) — Build:**
+1. **Phase 8 (Price calculators) — Build first:**
    - [ ] Buy price calculator (Page 2: Neighbourhood Deep-Dive)
    - [ ] Rental yield calculator (Page 3: Investment View)
    
-3. **Phase 10 (Neighbourhood detail pages) — Build:**
+2. **Phase 10 (Neighbourhood detail pages) — Build:**
    - [ ] Dynamic neighbourhood detail pages with price history, property breakdown, metrics
    - [ ] Make neighbourhoods clickable in existing choro/bar charts
-   - [ ] Demo video for "What's inside" section
+   - [ ] Screen record demo video
+
+3. **Phase 7 finish (Visual sprint) — Polish after features complete:**
+   - [ ] Market pulse: optional auto-generated summary (low priority — skip if time-constrained)
+   - [ ] What's inside preview: build with real working screenshots + demo video of actual features
 
 4. **Phase 9 (Paywall & launch) — Last:**
    - [ ] Wire paywall soft gates on Pages 2 & 3
