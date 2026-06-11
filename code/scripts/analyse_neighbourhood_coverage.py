@@ -96,7 +96,7 @@ SELECT
     COUNT(*) as total,
     COUNT(CASE WHEN neighbourhood IS NULL OR neighbourhood = '' THEN 1 END) as null_count
 FROM ads_buy
-WHERE is_active = true
+WHERE is_active = 1
 """)
 buy_total, buy_null = cur.fetchone()
 buy_pct = 100.0 * buy_null / buy_total if buy_total > 0 else 0
@@ -111,7 +111,7 @@ SELECT
     COUNT(*) as total,
     COUNT(CASE WHEN neighbourhood IS NULL OR neighbourhood = '' THEN 1 END) as null_count
 FROM ads_rent
-WHERE is_active = true
+WHERE is_active = 1
 """)
 rent_total, rent_null = cur.fetchone()
 rent_pct = 100.0 * rent_null / rent_total if rent_total > 0 else 0
@@ -139,9 +139,9 @@ print("="*80)
 cur.execute("""
 SELECT DISTINCT neighbourhood, city
 FROM (
-    SELECT neighbourhood, city FROM ads_buy WHERE is_active = true AND neighbourhood IS NOT NULL AND neighbourhood != ''
+    SELECT neighbourhood, city FROM ads_buy WHERE is_active = 1 AND neighbourhood IS NOT NULL AND neighbourhood != ''
     UNION
-    SELECT neighbourhood, city FROM ads_rent WHERE is_active = true AND neighbourhood IS NOT NULL AND neighbourhood != ''
+    SELECT neighbourhood, city FROM ads_rent WHERE is_active = 1 AND neighbourhood IS NOT NULL AND neighbourhood != ''
 ) t
 ORDER BY city, neighbourhood
 """)
@@ -181,13 +181,13 @@ for city, neighbourhoods in neighbourhoods_by_city.items():
 # Count listings per neighbourhood
 cur.execute("""
 SELECT neighbourhood, city,
-       (SELECT COUNT(*) FROM ads_buy WHERE is_active = true AND city = t.city AND neighbourhood = t.neighbourhood) +
-       (SELECT COUNT(*) FROM ads_rent WHERE is_active = true AND city = t.city AND neighbourhood = t.neighbourhood) as count
+       (SELECT COUNT(*) FROM ads_buy WHERE is_active = 1 AND city = t.city AND neighbourhood = t.neighbourhood) +
+       (SELECT COUNT(*) FROM ads_rent WHERE is_active = 1 AND city = t.city AND neighbourhood = t.neighbourhood) as count
 FROM (
     SELECT DISTINCT neighbourhood, city FROM (
-        SELECT neighbourhood, city FROM ads_buy WHERE is_active = true AND neighbourhood IS NOT NULL AND neighbourhood != ''
+        SELECT neighbourhood, city FROM ads_buy WHERE is_active = 1 AND neighbourhood IS NOT NULL AND neighbourhood != ''
         UNION
-        SELECT neighbourhood, city FROM ads_rent WHERE is_active = true AND neighbourhood IS NOT NULL AND neighbourhood != ''
+        SELECT neighbourhood, city FROM ads_rent WHERE is_active = 1 AND neighbourhood IS NOT NULL AND neighbourhood != ''
     ) t
 ) t
 ORDER BY city, neighbourhood
