@@ -41,14 +41,26 @@ geojson_dir = "dashboard/static"
 geojsons = {}
 
 regions = {
-    "porto": "porto_region.geojson",
-    "lisboa": "lisboa_region.geojson",
-    "algarve": "algarve.geojson",
-    "almada": "almada.geojson"
+    "porto": {
+        "filename": "porto_region.geojson",
+        "feature_key": "NAME_3"
+    },
+    "lisboa": {
+        "filename": "lisboa_region.geojson",
+        "feature_key": "NAME_3"
+    },
+    "algarve": {
+        "filename": "algarve.geojson",
+        "feature_key": "NAME_2"
+    },
+    "almada": {
+        "filename": "almada.geojson",
+        "feature_key": "NAME_2"
+    }
 }
 
-for region_name, filename in regions.items():
-    filepath = os.path.join(geojson_dir, filename)
+for region_name, config in regions.items():
+    filepath = os.path.join(geojson_dir, config["filename"])
     if os.path.exists(filepath):
         with open(filepath, encoding='utf-8') as f:
             geojson_data = json.load(f)

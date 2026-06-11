@@ -38,7 +38,7 @@ REGION_CONFIG = {
     'almada': {
         'geojson': 'dashboard/static/almada.geojson',
         'cities': ['almada'],
-        'feature_key': 'NAME_3'
+        'feature_key': 'NAME_2'
     },
     'algarve': {
         'geojson': 'dashboard/static/algarve.geojson',
