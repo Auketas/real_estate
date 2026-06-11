@@ -1,0 +1,28 @@
+name: Analyse Neighbourhood Coverage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary
+
+      - name: Analyse neighbourhood coverage
+        env:
+          NEON_DBNAME: ${{ secrets.NEON_DBNAME }}
+          NEON_HOST: ${{ secrets.NEON_HOST }}
+          NEON_USER: ${{ secrets.NEON_USER }}
+          NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
+        run: python code/scripts/analyse_neighbourhood_coverage.py
