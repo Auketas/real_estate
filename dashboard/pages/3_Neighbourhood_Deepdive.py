@@ -152,8 +152,6 @@ else:
     df_choro["ppm2_display"]  = df_choro["median_price_per_m2"] * rate
     df_choro["price_display"] = df_choro["median_price"]        * rate
 
-    matched_pct = len(df_matched) / max(len(df_nbhd), 1) * 100
-
     def format_neighbourhood_name(name):
         """Add spaces before capital letters: LordeloDoOuro -> Lordelo Do Ouro"""
         return ''.join(c if i == 0 else (' ' + c if c.isupper() else c)
@@ -189,10 +187,6 @@ else:
         margin=dict(l=0, r=0, t=0, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)
-    st.caption(
-        f"{matched_pct:.0f}% of neighbourhoods matched to map polygons. "
-        "Unmatched neighbourhoods appear in the bar chart below only."
-    )
 
     # Secondary bar chart — all neighbourhoods including unmatched
     st.subheader(f"Price per m² by neighbourhood — {region}")

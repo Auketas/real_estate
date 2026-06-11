@@ -67,7 +67,7 @@ snapshot_label = pd.to_datetime(df["snapshot_month"].iloc[0]).strftime("%b %Y") 
 # ── Hero metrics ──────────────────────────────────────────────────────────────
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Active listings",     f"{df['listing_count'].sum():,}")
+col1.metric("Median price",        fmt_price(df["median_price"].median()))
 col2.metric(f"Median {symbol}/m²", fmt_price(df["median_price_per_m2"].median()))
 col3.metric("Cities covered",      df["city"].nunique())
 col4.metric("Data freshness",      f"Updated {snapshot_label}")
