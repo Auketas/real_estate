@@ -764,11 +764,32 @@ Four regions, each with different map granularity:
   - New: "...long-term rentals are too rare in this region to reliably analyze"
 - **Algarve neighbourhood breakdown**: Added avg days on market and most common property type fields
 
+### Implementation Roadmap (Remaining)
+
+**Complete in this order** (Phase 7 → 8 → 10 → 9):
+
+1. **Phase 7 (Visual sprint) — Finish:**
+   - [ ] Market pulse: auto-generated 2–3 sentence summary on Explorer page
+   - [ ] What's inside preview: card section on Explorer with static screenshots + Subscribe CTA
+
+2. **Phase 8 (Price calculators) — Build:**
+   - [ ] Buy price calculator (Page 2: Neighbourhood Deep-Dive)
+   - [ ] Rental yield calculator (Page 3: Investment View)
+   
+3. **Phase 10 (Neighbourhood detail pages) — Build:**
+   - [ ] Dynamic neighbourhood detail pages with price history, property breakdown, metrics
+   - [ ] Make neighbourhoods clickable in existing choro/bar charts
+   - [ ] Demo video for "What's inside" section
+
+4. **Phase 9 (Paywall & launch) — Last:**
+   - [ ] Wire paywall soft gates on Pages 2 & 3
+   - [ ] Build Contact page
+   - [ ] Set up LemonSqueezy flow
+
 ### Next Steps (Immediate)
-1. Commit and push all scraper/dashboard/GeoJSON changes
-2. Run monthly aggregation to capture Setúbal baseline data and re-aggregate with corrected Almada
-3. Monitor first Setúbal scraper runs to verify listing volumes and neighbourhood matching quality
-4. Add "What's inside" preview section to Explorer page (Phase 9)
+1. Run monthly aggregation to capture Setúbal baseline and re-aggregate with corrected Almada
+2. Monitor first Setúbal scraper runs to verify listing volumes and neighbourhood quality
+3. **Then: Start Phase 7 finish work** (market pulse + what's inside)
 
 ---
 
