@@ -139,3 +139,48 @@ def get_exchange_rates() -> dict:
             rate = list(obs.values())[0][0]
             rates[currencies[i]["id"]] = rate
     return rates
+
+
+@st.cache_data(ttl=3600)
+def get_model_coefficients(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
+    """
+    Fetch regression coefficients for a city, listing type, and month.
+    Returns: id, snapshot_month, listing_type, city, variable_name, coefficient, std_error
+    """
+    sql = text("""
+        SELECT * FROM model_coefficients
+        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+    """)
+    params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
+    with get_engine().connect() as conn:
+        return pd.read_sql(sql, conn, params=params)
+
+
+@st.cache_data(ttl=3600)
+def get_model_metadata(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
+    """
+    Fetch model-level metadata (n_observations, r_squared, residual_std_error).
+    Returns: id, snapshot_month, listing_type, city, n_observations, r_squared, residual_std_error
+    """
+    sql = text("""
+        SELECT * FROM model_metadata
+        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+    """)
+    params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
+    with get_engine().connect() as conn:
+        return pd.read_sql(sql, conn, params=params)
+
+
+@st.cache_data(ttl=3600)
+def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
+    """
+    Fetch feature means/prevalences for marginalization of unspecified inputs.
+    Returns: id, snapshot_month, listing_type, city, variable_name, feature_mean
+    """
+    sql = text("""
+        SELECT * FROM model_feature_stats
+        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+    """)
+    params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
+    with get_engine().connect() as conn:
+        return pd.read_sql(sql, conn, params=params)
