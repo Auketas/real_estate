@@ -24,7 +24,7 @@ def _load_json(filename):
 LOOKUP = _load_json("neighbourhood_lookup.json")
 
 ALGARVE_CITIES = ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
-ALMADA_CITIES = ("almada",)
+SETUBAL_CITIES = ("almada", "costa-da-caparica", "caparica-e-trafaria")
 
 REGIONS = {
     "Porto":   dict(cities=("porto", "vila-nova-de-gaia", "maia"),
@@ -33,9 +33,9 @@ REGIONS = {
     "Lisboa":  dict(cities=("lisboa", "cascais", "sintra"),
                     geojson="lisboa_region.geojson", featureidkey="properties.NAME_3",
                     lat=38.72, lon=-9.14, zoom=10),
-    "Almada":  dict(cities=ALMADA_CITIES,
-                    geojson="almada.geojson",        featureidkey="properties.NAME_2",
-                    lat=38.675, lon=-9.137, zoom=12),
+    "Setúbal": dict(cities=SETUBAL_CITIES,
+                    geojson="setubal.geojson",       featureidkey="properties.NAME_3",
+                    lat=38.64, lon=-9.16, zoom=11),
     "Algarve": dict(cities=ALGARVE_CITIES,
                     geojson="algarve.geojson",       featureidkey="properties.NAME_2",
                     lat=37.13, lon=-8.25, zoom=8),

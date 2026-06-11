@@ -10,7 +10,7 @@ require_auth()
 rate, symbol, fmt_price = render_currency_selector()
 
 # Algarve rental data is too sparse on these platforms for reliable yield estimates
-YIELD_CITIES = {"porto", "vila-nova-de-gaia", "maia", "lisboa", "cascais", "sintra", "almada"}
+YIELD_CITIES = {"porto", "vila-nova-de-gaia", "maia", "lisboa", "cascais", "sintra", "almada", "costa-da-caparica", "caparica-e-trafaria"}
 
 st.title("Investment View")
 st.caption(

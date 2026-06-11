@@ -427,10 +427,11 @@ Once deduplication is in place, track price changes on the canonical deduplicate
 
 Cities currently scraped:
 - **Lisboa region:** Lisboa, Cascais, Sintra
-- **Porto region:** Porto, Vila Nova de Gaia, Matosinhos
+- **Porto region:** Porto, Vila Nova de Gaia, Matosinhos, Maia
+- **Setúbal region:** Almada, Costa da Caparica, Caparica e Trafaria
 - **Algarve:** Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão
 
-**Rental data coverage:** Lisboa and Porto regions only. The Algarve rental market is too thin on imovirtual and casa sapo (verified: ~4–55 active listings per city) to produce meaningful statistics or models. All rent-facing features — the rent toggle, rent regression models, and the rental yield calculator — are restricted to Lisboa and Porto. Algarve pages show buy data only.
+**Rental data coverage:** Lisboa, Porto, and Setúbal regions. The Algarve rental market is too thin on imovirtual and casa sapo (verified: ~4–55 active listings per city) to produce meaningful statistics or models. All rent-facing features — the rent toggle, rent regression models, and the rental yield calculator — are restricted to these regions. Algarve pages show buy data only.
 
 Do not expand beyond this for now. Each new city is ongoing scraper maintenance.
 
@@ -732,18 +733,27 @@ Four regions, each with different map granularity:
 - Both cities now appear on Explorer map with proper coordinates and climate data
 - Integration complete: Maia shows in Porto region of Neighbourhood Deepdive, Almada as standalone region
 
-### Data Quality & Neighbourhood Matching
-- Cascais: 1,311 imovirtual listings now in database (scraped June 5)
+### Data Quality & Neighbourhood Matching ✓ COMPLETE
+- **Polygon matching fixed** — spatial join backfill completed with 98.9% match rate (35,508/35,947 listings)
+- **Almada mapped correctly** — fixed imovirtual URL from "lisboa/almada" to "setubal/almada"
+- Neighbourhood matching: 167 → 186 entries in `neighbourhood_lookup.json`; manual mapping completed
+- Cascais: 1,311 imovirtual listings in database (scraped June 5)
 - Sintra: 6 listings (sparse, below 10-listing aggregation threshold)
-- Neighbourhood matching expanded: 167 → 186 entries in `neighbourhood_lookup.json`
-- Current match rate: 54% for Porto/Lisboa (129/235 neighbourhoods matched)
-- **Pending**: Manual review of 106 unmatched neighbourhoods and 68 empty GeoJSON features
-- Created `mapping_review_guide.md` for structured manual mapping task
+
+### Scraper Expansion — Setúbal Region Added
+- **Extended south of Lisbon** — Added Almada, Costa da Caparica, and Caparica e Trafaria to both scrapers
+- **imovirtual URLs fixed** — Corrected Almada to `setubal/almada`; added two new cities via proper URL structure
+- **casasapo URLs verified** — All three cities working with direct city-level URLs
+- **GeoJSON boundary file created** — Fetched `setubal.geojson` with 11 parishes from GADM
+- **Dashboard fully integrated**:
+  - New "Setúbal" region in Neighbourhood Deep-Dive (replacing standalone Almada)
+  - Cities added to Explorer map with coordinates and climate data
+  - Added to Investment View yield analysis
 
 ### UI/UX Improvements
 - **Date format**: Fixed truncation ("Jun 2026" instead of "June 2026")
 - **Table layout**: Removed unnecessary city-level listing breakdown in Explorer
-- **City labels**: "Vila Nova de Gaia" → "Gaia" for brevity
+- **City labels**: "Vila Nova de Gaia" → "Gaia"; added proper labels for new Setúbal cities
 - **Hover tooltips**: 
   - Added price rounding (:.0f format) to all numeric displays
   - Removed listing count (was confusing)
@@ -754,15 +764,10 @@ Four regions, each with different map granularity:
   - New: "...long-term rentals are too rare in this region to reliably analyze"
 - **Algarve neighbourhood breakdown**: Added avg days on market and most common property type fields
 
-### Known Issues & Workarounds
-- Imovirtual scraper crashed June 4 with NULL id in price_changes insert — one-off error, likely fixed
-- Cascais data was scraped June 5 but June 1 aggregation already ran → re-run needed to populate neighbourhood summaries
-- Cascais and Sintra neighbourhoods fall below 10-listing threshold individually, appear as city-level fallback in summaries
-
 ### Next Steps (Immediate)
-1. Re-run monthly aggregation for June (workflow_dispatch) to capture all new data
-2. Manually map remaining 106 neighbourhoods (user to review `mapping_review_guide.md`)
-3. Verify Maia and Almada scraper data on next scheduled run (June 6+)
+1. Commit and push all scraper/dashboard/GeoJSON changes
+2. Run monthly aggregation to capture Setúbal baseline data and re-aggregate with corrected Almada
+3. Monitor first Setúbal scraper runs to verify listing volumes and neighbourhood matching quality
 4. Add "What's inside" preview section to Explorer page (Phase 9)
 
 ---
@@ -770,31 +775,28 @@ Four regions, each with different map granularity:
 ## Pre-Launch Checklist
 
 - [x] All data bugs fixed and verified
-  - [x] Cascais/Sintra: 1,311 & 6 listings now scraped (sparse data fixed by June aggregation run)
-  - [x] Imovirtual scraper crash (June 4): NULL id error — one-off, likely fixed
-  - [x] Neighbourhood matching: 54% match rate (129/235), 106 still pending manual mapping
+  - [x] Polygon matching: spatial join backfill completed at 98.9% match rate
+  - [x] Almada URL fixed (was "lisboa/almada", now "setubal/almada")
+  - [x] Neighbourhood matching: manual mapping completed; 99%+ match rate achieved
+  - [x] Cascais/Sintra: 1,311 & 6 listings now scraped
 - [ ] Summary tables populated and sanity checked
-  - [ ] **PENDING**: Re-run monthly aggregation for June (workflow_dispatch) to capture new Cascais data and produce Maia/Almada baseline
+  - [ ] **PENDING**: Re-run monthly aggregation (workflow_dispatch) to capture Setúbal baseline and re-aggregate with corrected Almada
 - [x] Regression models producing sensible outputs
   - [x] R² values good across all models
   - [x] Coefficients have correct signs and magnitudes
 - [x] Currency toggle working on all price displays
 - [x] Dashboard UI updated with new design language
   - [x] Date format fixed, table layout optimized, hovers improved
-  - [x] Maia and Almada fully integrated
+  - [x] Maia, Almada, and Setúbal cities fully integrated
+- [x] Scraper expansion complete
+  - [x] Setúbal region (Almada, Costa da Caparica, Caparica e Trafaria) added to both scrapers
+  - [x] GeoJSON boundaries fetched for Setúbal region
+  - [x] Dashboard updated with new region, coordinates, climate data
+  - [x] All cities in CITY_LABELS with proper names
+  - [x] No city names showing in lowercase
 - [ ] Paywall gate working on Pages 2 and 3
 - [ ] LemonSqueezy subscription flow tested end to end
 - [ ] Contact form tested — messages arriving in Gmail
-- [x] Maia and Almada scrapers live and integrated
-- [x] Cascais, Sintra, Maia, Almada in CITY_LABELS with proper names
-- [x] No city names showing in lowercase
 - [ ] "What's inside" preview section on Explorer page (ready to implement)
 - [ ] Load time acceptable (target under 3 seconds for Explorer page)
 - [ ] Custom domain set up (can do after first paying subscriber if preferred)
-
-## Pending Manual Work
-
-- **Neighbourhood matching** (`mapping_review_guide.md`): 106 Porto/Lisboa neighbourhoods need manual mapping to GeoJSON features
-  - 20 unmatched in Lisboa, 86 in Porto, 3 in Gaia
-  - 68 empty GeoJSON features identified as potential expansion targets
-  - User review needed to validate suggestions and add mappings

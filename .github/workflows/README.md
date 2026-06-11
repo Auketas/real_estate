@@ -7,14 +7,14 @@ This file describes what each workflow does and when it runs. All workflows use 
 ### 1. **run_imovirtual_scraper** (`r.yml`)
 - **What:** Scrapes imovirtual.com for buy and rent listings across Portuguese cities
 - **When:** Daily at 06:00 UTC, or manually via workflow_dispatch
-- **Cities:** Porto, Matosinhos, Maia, Vila Nova de Gaia, Lisboa, Cascais, Sintra, Almada, Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão
+- **Cities:** Porto, Matosinhos, Maia, Vila Nova de Gaia, Lisboa, Cascais, Sintra, Almada, Costa da Caparica, Caparica e Trafaria, Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão
 - **Output:** Inserts/updates rows in `ads_buy` and `ads_rent` with `platform = 'imovirtual'`
 - **Notes:** Marks duplicate listings, sets `last_seen`, updates `is_active` flag
 
 ### 2. **run_casasapo_scraper** (`casasapo.yml`)
 - **What:** Scrapes casasapo.pt for buy and rent listings across Portuguese cities
 - **When:** Daily at 18:00 UTC (12 hours after imovirtual), or manually via workflow_dispatch
-- **Cities:** Same as imovirtual
+- **Cities:** Porto, Matosinhos, Maia, Vila Nova de Gaia, Lisboa, Cascais, Sintra, Almada, Costa da Caparica, Caparica e Trafaria, Albufeira, Faro, Lagoa, Lagos, Loulé, Portimão
 - **Output:** Inserts/updates rows in `ads_buy` and `ads_rent` with `platform = 'casa_sapo'`
 - **Notes:** Intentionally delayed 12 hours to avoid database conflicts with imovirtual
 
@@ -56,7 +56,7 @@ This file describes what each workflow does and when it runs. All workflows use 
   2. **Unmapped neighbourhood rate:** % of listings whose neighbourhood can't be matched to any GeoJSON polygon on the dashboard
 - **Scope:** Compares database neighbourhoods against:
   - `neighbourhood_lookup.json` (scraper → GeoJSON feature mapping)
-  - Actual GeoJSON features in `porto_region.geojson`, `lisboa_region.geojson`, `algarve.geojson`, `almada.geojson`
+  - Actual GeoJSON features in `porto_region.geojson`, `lisboa_region.geojson`, `setubal.geojson`, `algarve.geojson`
 - **Output:** Console report with:
   - Overall coverage % by city
   - Biggest problem neighbourhoods (by listing count)
@@ -89,9 +89,9 @@ This file describes what each workflow does and when it runs. All workflows use 
 - **What:** Updates ALL listings in the database by doing spatial join (point-in-polygon) on their lon/lat coordinates
 - **When:** Manual trigger only (workflow_dispatch)
 - **Process:**
-  1. Loads all GeoJSON files (porto_region, lisboa_region, algarve, almada)
+  1. Loads all GeoJSON files (porto_region, lisboa_region, setubal, algarve)
   2. For each listing with valid coordinates, finds which polygon it's inside
-  3. Assigns the polygon's NAME_3 (parishes for Porto/Lisboa) or NAME_2 (municipalities for Algarve) as the neighbourhood
+  3. Assigns the polygon's NAME_3 (parishes for Porto/Lisboa/Setúbal) or NAME_2 (municipalities for Algarve) as the neighbourhood
   4. Updates the database
 - **Output:** Summary showing how many listings were matched to polygons
 - **Use case:** One-time backfill or periodic refresh. Use same spatial matching logic as the scrapers use for new listings.

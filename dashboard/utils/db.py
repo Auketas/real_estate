@@ -8,6 +8,8 @@ CITY_LABELS = {
     "cascais":           "Cascais",
     "sintra":            "Sintra",
     "almada":            "Almada",
+    "costa-da-caparica": "Costa da Caparica",
+    "caparica-e-trafaria": "Caparica",
     "maia":              "Maia",
     "albufeira":         "Albufeira",
     "faro":              "Faro",

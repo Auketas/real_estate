@@ -51,9 +51,9 @@ load_geojson_neighbourhoods <- function() {
       geojsons[["algarve"]] <- st_read(algarve_path, quiet = TRUE)
     }
 
-    almada_path <- file.path(geojson_dir, "almada.geojson")
-    if (file.exists(almada_path)) {
-      geojsons[["almada"]] <- st_read(almada_path, quiet = TRUE)
+    setubal_path <- file.path(geojson_dir, "setubal.geojson")
+    if (file.exists(setubal_path)) {
+      geojsons[["setubal"]] <- st_read(setubal_path, quiet = TRUE)
     }
 
     return(geojsons)
@@ -644,7 +644,8 @@ update_database <- function() {
 
   cities_sapo <- c("porto", "vila-nova-de-gaia", "matosinhos", "maia",
                    "albufeira", "loule", "portimao", "lagos", "lagoa", "faro",
-                   "lisboa", "cascais", "sintra", "almada")
+                   "lisboa", "cascais", "sintra",
+                   "almada", "costa-da-caparica", "caparica-e-trafaria")
   runstats <- list(
     "date"               = Sys.Date(),
     "new_listings"       = 0,

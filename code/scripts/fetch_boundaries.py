@@ -1,6 +1,6 @@
 """
 One-off script to download Portugal administrative boundaries from GADM
-and save three GeoJSON files used by the neighbourhood deep-dive map.
+and save GeoJSON files used by the neighbourhood deep-dive map.
 
 Run from the repo root:
     python code/scripts/fetch_boundaries.py
@@ -9,6 +9,7 @@ Output files:
     dashboard/static/algarve.geojson        — 6 Algarve municipalities (level 2)
     dashboard/static/porto_region.geojson   — Porto + VNG + Matosinhos parishes (level 3)
     dashboard/static/lisboa_region.geojson  — Lisboa + Cascais + Sintra parishes (level 3)
+    dashboard/static/setubal.geojson        — Almada + Costa da Caparica + Caparica e Trafaria parishes (level 3)
 """
 
 import io
@@ -98,6 +99,13 @@ if __name__ == "__main__":
     ])
     save(lisboa, "lisboa_region.geojson")
     print_names(lisboa, "NAME_3", "Lisboa region parishes")
+
+    # ---- Almada + Costa da Caparica + Caparica e Trafaria: parish polygons (level 3) ----
+    setubal = filter_by_municipality(level3, [
+        "Almada", "Costa da Caparica", "Caparica e Trafaria"
+    ])
+    save(setubal, "setubal.geojson")
+    print_names(setubal, "NAME_3", "Setúbal region parishes")
 
     print("\nDone. Check the NAME_3 lists above against the DB neighbourhood")
     print("names to build the lookup table in dashboard/static/neighbourhood_lookup.json")

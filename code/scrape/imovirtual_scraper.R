@@ -58,9 +58,9 @@ load_geojson_neighbourhoods <- function() {
       geojsons[["algarve"]] <- st_read(algarve_path, quiet = TRUE)
     }
 
-    almada_path <- file.path(geojson_dir, "almada.geojson")
-    if (file.exists(almada_path)) {
-      geojsons[["almada"]] <- st_read(almada_path, quiet = TRUE)
+    setubal_path <- file.path(geojson_dir, "setubal.geojson")
+    if (file.exists(setubal_path)) {
+      geojsons[["setubal"]] <- st_read(setubal_path, quiet = TRUE)
     }
 
     return(geojsons)
@@ -87,8 +87,8 @@ get_neighbourhood_from_polygon <- function(lon, lat, city) {
       geojson <- GEOJSON_NEIGHBOURHOODS[["porto"]]
     } else if (city_norm %in% c("lisboa", "cascais", "sintra")) {
       geojson <- GEOJSON_NEIGHBOURHOODS[["lisboa"]]
-    } else if (city_norm == "almada") {
-      geojson <- GEOJSON_NEIGHBOURHOODS[["almada"]]
+    } else if (city_norm %in% c("almada", "costa da caparica", "caparica e trafaria")) {
+      geojson <- GEOJSON_NEIGHBOURHOODS[["setubal"]]
     } else if (city_norm %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")) {
       geojson <- GEOJSON_NEIGHBOURHOODS[["algarve"]]
     }
@@ -403,7 +403,8 @@ update <- function(type, city,runstats) {
 
   today <- Sys.Date()
   price_changes <- 0
-  cityname <- strsplit(city, "/")[[1]][2]
+  parts <- strsplit(city, "/")[[1]]
+  cityname <- parts[length(parts)]
 
   table_ads    <- ifelse(type == "buy", "ads_buy", "ads_rent")
   table_prices <- ifelse(type == "buy", "price_changes_buy", "price_changes_rent")
@@ -645,7 +646,8 @@ update_database <- function(){
   runstats <- list("date"=Sys.Date(),"new_listings"=0,"existing_listings"=0,"inactive_listings"=0,"price_changes"=0,"platform"="imovirtual")
   cities <- c("porto/porto","porto/vila-nova-de-gaia","porto/matosinhos","porto/maia",
               "faro/albufeira","faro/loule","faro/portimao","faro/lagos","faro/lagoa","faro/faro",
-              "lisboa/lisboa","lisboa/cascais","lisboa/sintra","lisboa/almada")
+              "lisboa/lisboa","lisboa/cascais","lisboa/sintra",
+              "setubal/almada","setubal/almada/costa-da-caparica","setubal/almada/caparica-e-trafaria")
   for(city in cities){
     print(paste0("Scraping ",city))
     runstats <- update("rent",city,runstats)
