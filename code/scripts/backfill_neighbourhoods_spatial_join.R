@@ -1,18 +1,15 @@
-#!/usr/bin/env Rscript
-"""
-Backfill neighbourhoods for all listings using spatial join (point-in-polygon).
-
-This script goes through ALL listings in ads_buy and ads_rent and assigns them to
-neighbourhoods by finding which GeoJSON polygon their coordinates fall inside.
-
-Approach:
-1. Load all GeoJSON files (porto, lisboa, algarve, almada)
-2. For each listing with lon/lat, find the polygon it's inside
-3. Use the polygon's NAME_3 (parishes) or NAME_2 (municipalities) as the neighbourhood
-4. Update the database with the corrected neighbourhood
-
-This is the same approach used by the scrapers for new listings.
-"""
+# Backfill neighbourhoods for all listings using spatial join (point-in-polygon).
+#
+# This script goes through ALL listings in ads_buy and ads_rent and assigns them to
+# neighbourhoods by finding which GeoJSON polygon their coordinates fall inside.
+#
+# Approach:
+# 1. Load all GeoJSON files (porto, lisboa, algarve, almada)
+# 2. For each listing with lon/lat, find the polygon it's inside
+# 3. Use the polygon's NAME_3 (parishes) or NAME_2 (municipalities) as the neighbourhood
+# 4. Update the database with the corrected neighbourhood
+#
+# This is the same approach used by the scrapers for new listings.
 
 library(DBI)
 library(RPostgres)
