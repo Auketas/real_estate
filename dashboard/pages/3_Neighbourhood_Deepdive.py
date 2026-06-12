@@ -34,13 +34,16 @@ REGIONS = {
                     lat=41.16, lon=-8.62, zoom=11),
     "Lisboa":  dict(cities=("lisboa", "cascais", "sintra", "almada", "costa-da-caparica", "caparica-e-trafaria"),
                     geojson="lisboa_region.geojson", featureidkey="properties.NAME_3",
-                    lat=38.72, lon=-9.14, zoom=10),
+                    lat=38.6956, lon=-9.2404, zoom=9),
     "Algarve": dict(cities=ALGARVE_CITIES,
                     geojson="algarve.geojson",       featureidkey="properties.NAME_2",
                     lat=37.13, lon=-8.25, zoom=8),
 }
 
-COLOR_SCALE = ["#ffffcc", "#800000"]  # Pale yellow → dark maroon for maximum contrast
+# Color scales: buy uses custom palette, rent uses perceptually uniform scale for better visibility
+# across the wider price range (€17.5–€490/m² vs €3,000–€11,000/m²)
+COLOR_SCALE_BUY = ["#ffffcc", "#800000"]  # Pale yellow → dark maroon for maximum contrast
+COLOR_SCALE_RENT = "YlOrRd"  # Yellow-Orange-Red: perceptually uniform, shows variation better
 
 
 def weighted_avg(group, val_col):
@@ -169,11 +172,14 @@ else:
     df_choro["ppm2_rounded"] = df_choro["ppm2_display"].round(0)
     df_choro["price_rounded"] = df_choro["price_display"].round(0)
 
+    # Choose color scale based on listing type: rent uses perceptually uniform scale
+    color_scale = COLOR_SCALE_RENT if type_key == "rent" else COLOR_SCALE_BUY
+
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
         color="ppm2_display",
-        color_continuous_scale=COLOR_SCALE,
+        color_continuous_scale=color_scale,
         mapbox_style="carto-positron",
         zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
         opacity=0.75,
