@@ -14,27 +14,7 @@ This document defines the agreed design direction, page structure, visual langua
 
 ## 🔴 Known Issues — START HERE FOR NEXT SESSION
 
-These issues were identified June 12, 2026 and should be prioritized for the next session:
-
-1. **Rental map coverage much sparser than buy map**
-   - Phenomenon: Neighbourhood Deep-Dive rent view shows far fewer shaded areas than buy view for the same region
-   - Likely causes: Rent data much sparser; some neighbourhoods below 10-listing aggregation threshold; or margin settings in choropleth cutting off labels
-   - Fix: Investigate rent vs buy listing counts per neighbourhood; consider lowering aggregation threshold for rent (currently 10 listings); review GeoJSON rendering
-
-2. **Setúbal should be part of Lisbon, not separate**
-   - Current state: Almada, Costa da Caparica, Caparica appear in a separate "Setúbal" region in Neighbourhood Deep-Dive selector
-   - Decision: Fold Setúbal cities into "Lisbon region" selector instead of standalone region
-   - Impact: Changes data/ui.py region mappings, Neighbourhood Deep-Dive city grouping, Investment View YIELD_CITIES list
-
-3. **Lisboa map doesn't look complete**
-   - Phenomenon: Some central Lisbon neighbourhoods appear unshaded on choropleth despite having data
-   - Likely causes: Outlier filtering in aggregation; spatial join mismatches; or GeoJSON feature names not matching database neighbourhood values
-   - Fix: Run diagnostic query on neighbourhood_latest_summary for "lisboa" buy data; verify all feature names in GeoJSON match database exactly; check if price per m² outliers are silently filtering neighbourhoods
-
-4. **Algarve neighbourhood bar chart is broken**
-   - Specific issue: Chart not rendering correctly or showing wrong data
-   - Context: Algarve is buy-only; neighbourhood thresholds may be too strict for sparse Algarve data
-   - Fix: Check Algarve-specific thresholds in dashboard code (likely in `3_Neighbourhood_Deepdive.py`); verify data exists; may need separate aggregation logic for Algarve
+None currently identified. See "Recent Changes & Current Status" for June 12-13 improvements.
 
 ---
 
@@ -756,7 +736,42 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-## Recent Changes & Current Status (June 2026)
+## Recent Changes & Current Status (June 12–13, 2026)
+
+### Price Estimator & Calculator Improvements
+- **Confidence intervals narrowed to 50%** (was 80%, which was impractical)
+  - Buy: €340k–€420k range (vs €295k–€837k before) — much more actionable
+  - Rent: €1,200–€1,800 range (vs €1,000–€2,200 before) — now useful for decisions
+  - Thresholds adjusted: High (±<25%), Medium (±25–40%), Low (±>40%)
+- **Fixed "novo" (new build) feature** — was producing all zeros due to Portuguese text handling bug in impute_binary()
+- **T5+ properties collapsed into single category** — solves sparse data overfitting (T5, T6, T7, T8, T9+ now grouped)
+  - Prevents non-monotonic coefficients: was T4 > T5 < T6 (confusing for users)
+  - Ridge regression now has enough observations per category to estimate properly
+- **Removed neighbourhood browse bar chart** — map and price estimator are superior features
+
+### Neighbourhood Deep-Dive Map Improvements
+- **Lisbon map now shows all cities by default**
+  - Before: Zoomed to Lisbon city only; Cascais/Sintra/Almada not visible without panning
+  - After: Center shifted to lat=38.6956, lon=-9.2404, zoom=9 to fit all cities in viewport
+- **Rent choropleth now uses raw price instead of EUR/m²**
+  - More intuitive for non-experts ("what will I pay?" vs "quality ratio")
+  - Avoids outlier scale compression (was 0–500 EUR/m², data clustered 17–50)
+  - Buy choropleth still uses EUR/m² (better for comparing property value)
+- **Added transparency message for rent data sparsity**
+  - Explains why fewer neighbourhoods appear: "Rental listings are sparser across these cities"
+  - Prevents users from thinking it's a bug or data quality issue
+
+### Regional Organization
+- **Folded Setúbal into Lisbon region** — was standalone region selector but had no data in database
+  - Almada, Costa da Caparica, Caparica e Trafaria now appear under "Lisboa" selector
+  - When scrapers populate these cities, they'll automatically appear without code changes
+
+### Bug Fixes
+- **Fixed duplicate intercept coefficients in regression models** — was causing €1 price estimates
+  - Added deduplication in coefficient extraction from glmnet
+  - Cleaned database: removed 15 duplicate zero-coefficient intercepts from 2026-06-12 models
+- **Reduced model cache TTL from 1h to 5min** — ensures dashboard picks up model changes faster
+- **Fixed rent message formatting** — clearer explanation of data sparsity vs market reality
 
 ### Daily/Monthly Aggregation Split
 - **Dashboard now shows current data daily** — implemented dual-timeline aggregation strategy
