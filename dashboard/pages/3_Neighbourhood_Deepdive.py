@@ -137,6 +137,14 @@ else:
         st.warning("No neighbourhood data available.")
         st.stop()
 
+    # Inform users about rent data sparsity
+    if type_key == "rent":
+        st.info(
+            "Rental listings are sparser across these cities — you may see fewer neighbourhoods "
+            "on the map and calculator than for buy properties. This reflects market availability, "
+            "not a data issue."
+        )
+
     # Neighbourhood field already contains GeoJSON feature names (from spatial join backfill via lat/lon)
     # No mapping needed; use directly as feature_name for choropleth
     df_nbhd["feature_name"] = df_nbhd["neighbourhood"]
