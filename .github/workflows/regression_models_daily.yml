@@ -1,0 +1,36 @@
+name: regression_models_daily
+
+env:
+    NEON_DBNAME: ${{ secrets.NEON_DBNAME }}
+    NEON_HOST: ${{ secrets.NEON_HOST }}
+    NEON_USER: ${{ secrets.NEON_USER }}
+    NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
+
+on:
+  schedule:
+    - cron: "0 19 * * *"   # 19:00 UTC daily (after both scrapers have run)
+  workflow_dispatch:
+
+jobs:
+  regress:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpq-dev
+
+      - name: Install R packages
+        run: |
+          Rscript -e 'install.packages(c("DBI", "RPostgres", "dplyr"), repos="https://cloud.r-project.org")'
+
+      - name: Run regression models (live)
+        run: |
+          Rscript code/aggregate/run_regression_models_live.R

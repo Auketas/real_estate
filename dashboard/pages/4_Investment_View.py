@@ -3,7 +3,8 @@ import plotly.express as px
 import utils.charts
 from utils.auth import require_auth
 from utils.db import (get_city_summary, get_model_coefficients, get_model_metadata,
-                      get_model_feature_stats, CITY_LABELS)
+                      get_model_feature_stats, CITY_LABELS, get_available_snapshot_months,
+                      get_latest_live_model_date)
 from utils.sidebar import render_currency_selector
 from utils.calculator import predict_price, get_available_neighbourhoods, get_available_tipologias
 
@@ -85,12 +86,12 @@ st.subheader("Rental Yield Calculator")
 
 st.caption("Estimate buy price, monthly rent, and gross yield for a property specification. Lisboa, Porto, and Setúbal only.")
 
-# Get latest snapshot month
-df_latest = get_city_summary(listing_type="buy")
-latest_month = df_latest["snapshot_month"].max() if not df_latest.empty else None
+# Get latest live model for current predictions
+latest_date = get_latest_live_model_date("buy")
+available_months = get_available_snapshot_months("buy")
 
-if latest_month is None:
-    st.warning("Model data not yet available. Run monthly aggregation first.")
+if latest_date is None:
+    st.warning("Live model not yet available. Models train daily after new listings are processed.")
 else:
     # City selector (rent-available regions only)
     RENT_AVAILABLE_CITIES = {
@@ -112,14 +113,14 @@ else:
         key="yield_city"
     )
 
-    # Fetch model data for both buy and rent
-    coef_buy = get_model_coefficients(selected_city, "buy", latest_month)
-    metadata_buy = get_model_metadata(selected_city, "buy", latest_month)
-    feature_stats_buy = get_model_feature_stats(selected_city, "buy", latest_month)
+    # Fetch live model data for both buy and rent
+    coef_buy = get_model_coefficients(selected_city, "buy", latest_date)
+    metadata_buy = get_model_metadata(selected_city, "buy", latest_date)
+    feature_stats_buy = get_model_feature_stats(selected_city, "buy", latest_date)
 
-    coef_rent = get_model_coefficients(selected_city, "rent", latest_month)
-    metadata_rent = get_model_metadata(selected_city, "rent", latest_month)
-    feature_stats_rent = get_model_feature_stats(selected_city, "rent", latest_month)
+    coef_rent = get_model_coefficients(selected_city, "rent", latest_date)
+    metadata_rent = get_model_metadata(selected_city, "rent", latest_date)
+    feature_stats_rent = get_model_feature_stats(selected_city, "rent", latest_date)
 
     if coef_buy.empty or coef_rent.empty:
         st.warning(f"Model data not available for {RENT_AVAILABLE_CITIES[selected_city]}")

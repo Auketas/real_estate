@@ -8,7 +8,8 @@ import utils.charts
 from utils.auth import require_auth
 from utils.db import (get_region_neighbourhood_summary, get_neighbourhood_summary,
                       get_city_summary, CITY_LABELS, get_model_coefficients,
-                      get_model_metadata, get_model_feature_stats)
+                      get_model_metadata, get_model_feature_stats, get_available_snapshot_months,
+                      get_latest_live_model_date)
 from utils.sidebar import render_currency_selector
 from utils.calculator import predict_price, get_available_neighbourhoods, get_available_tipologias
 
@@ -194,22 +195,21 @@ else:
     st.divider()
     st.subheader("Price Calculator")
 
-    # Get latest snapshot month from city summary
-    df_latest = get_city_summary(listing_type=type_key)
-    latest_month = df_latest["snapshot_month"].max() if not df_latest.empty else None
+    # Get latest live model for current predictions
+    first_city = cfg["cities"][0]
+    latest_date = get_latest_live_model_date(type_key)
+    available_months = get_available_snapshot_months(type_key)
 
-    if latest_month is None:
-        st.warning("Model data not yet available. Run monthly aggregation first.")
+    if latest_date is None:
+        st.warning("Live model not yet available. Models train daily after new listings are processed.")
     else:
-        # Fetch model data for the selected region's cities
-        first_city = cfg["cities"][0]
-
-        coef = get_model_coefficients(first_city, type_key, latest_month)
-        metadata = get_model_metadata(first_city, type_key, latest_month)
-        feature_stats = get_model_feature_stats(first_city, type_key, latest_month)
+        # Fetch live model data
+        coef = get_model_coefficients(first_city, type_key, latest_date)
+        metadata = get_model_metadata(first_city, type_key, latest_date)
+        feature_stats = get_model_feature_stats(first_city, type_key, latest_date)
 
         if coef.empty or metadata.empty:
-            st.warning(f"No model available for {region} ({type_key})")
+            st.warning(f"No live model available for {region} ({type_key})")
         else:
             # Get available options
             available_neighbourhoods = get_available_neighbourhoods(coef)
@@ -309,6 +309,26 @@ else:
                     st.caption("💡 Add more details to narrow the estimate")
 
                 st.write("")
+
+                # Historical price trend (if monthly snapshots available)
+                if available_months:
+                    with st.expander("📊 Price trend (monthly snapshots)"):
+                        trend_prices = []
+                        for month in available_months[:12]:  # Show last 12 months
+                            coef_hist = get_model_coefficients(first_city, type_key, month)
+                            feat_hist = get_model_feature_stats(first_city, type_key, month)
+                            meta_hist = get_model_metadata(first_city, type_key, month)
+                            if not coef_hist.empty and not feat_hist.empty:
+                                result_hist = predict_price(inputs, coef_hist, feat_hist, meta_hist)
+                                if "predicted_price" in result_hist:
+                                    trend_prices.append({
+                                        "Month": month,
+                                        "Price": result_hist["predicted_price"]
+                                    })
+                        if trend_prices:
+                            df_trend = pd.DataFrame(trend_prices)
+                            st.line_chart(df_trend.set_index("Month")["Price"])
+                            st.caption("How this property's predicted price has changed across monthly snapshots")
 
     # ── Neighbourhood Browse (Secondary) ────────────────────────────────────────
     st.divider()

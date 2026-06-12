@@ -184,3 +184,38 @@ def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -
     params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
     with get_engine().connect() as conn:
         return pd.read_sql(sql, conn, params=params)
+
+
+@st.cache_data(ttl=60)
+def get_latest_live_model_date(listing_type: str) -> str:
+    """
+    Fetch the most recent snapshot_date (live model) for a listing type.
+    Returns date string in ISO format (YYYY-MM-DD), or None if no models exist.
+    """
+    sql = text("""
+        SELECT MAX(snapshot_date) AS latest_date FROM model_metadata
+        WHERE listing_type = :listing_type AND snapshot_date IS NOT NULL
+    """)
+    params = {"listing_type": listing_type}
+    with get_engine().connect() as conn:
+        df = pd.read_sql(sql, conn, params=params)
+    if df.empty or df["latest_date"].iloc[0] is None:
+        return None
+    return str(df["latest_date"].iloc[0])
+
+
+@st.cache_data(ttl=3600)
+def get_available_snapshot_months(listing_type: str) -> list:
+    """
+    Fetch distinct snapshot months from model_metadata, sorted descending (most recent first).
+    Returns list of date strings in ISO format (YYYY-MM-DD).
+    """
+    sql = text("""
+        SELECT DISTINCT snapshot_month FROM model_metadata
+        WHERE listing_type = :listing_type AND snapshot_month IS NOT NULL
+        ORDER BY snapshot_month DESC
+    """)
+    params = {"listing_type": listing_type}
+    with get_engine().connect() as conn:
+        df = pd.read_sql(sql, conn, params=params)
+    return df["snapshot_month"].astype(str).tolist() if not df.empty else []

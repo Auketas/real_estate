@@ -55,6 +55,7 @@ create_tables_if_missing <- function(con) {
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_coefficients (
       id             SERIAL PRIMARY KEY,
+      snapshot_date  DATE,
       snapshot_month DATE,
       listing_type   VARCHAR(10),
       city           VARCHAR(100),
@@ -66,6 +67,7 @@ create_tables_if_missing <- function(con) {
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_metadata (
       id                 SERIAL PRIMARY KEY,
+      snapshot_date      DATE,
       snapshot_month     DATE,
       listing_type       VARCHAR(10),
       city               VARCHAR(100),
@@ -77,6 +79,7 @@ create_tables_if_missing <- function(con) {
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_feature_stats (
       id             SERIAL PRIMARY KEY,
+      snapshot_date  DATE,
       snapshot_month DATE,
       listing_type   VARCHAR(10),
       city           VARCHAR(100),
@@ -87,7 +90,7 @@ create_tables_if_missing <- function(con) {
 }
 
 # Fit one hedonic OLS model; returns list(coefficients, metadata) or NULL
-fit_city_model <- function(df, listing_type, city, snapshot_month) {
+fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month, mode) {
 
   # Numeric imputation
   df$area_imp    <- impute_median(df$area_num)
@@ -124,7 +127,7 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
     vars <- c(vars, "andar_imp")
   }
 
-  formula_obj <- as.formula(paste("log(price_num) ~", paste(vars, collapse = " + ")))
+  formula_obj <- as.formula(paste("log(price) ~", paste(vars, collapse = " + ")))
 
   fit <- tryCatch(
     lm(formula_obj, data = df),
@@ -148,8 +151,11 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
   structural <- coef_est[!grepl("^neighbourhood_f|^energia_f|^other_", names(coef_est))]
   coef_lines <- paste(sprintf("    %-30s %+.4f", names(structural), structural), collapse = "\n")
   message(coef_lines)
+
+  date_col_name <- ifelse(mode == "archive", "snapshot_month", "snapshot_date")
+  date_col_value <- ifelse(mode == "archive", snapshot_month, snapshot_date)
+
   coefs_df <- data.frame(
-    snapshot_month = snapshot_month,
     listing_type   = listing_type,
     city           = city,
     variable_name  = rownames(coef_mat),
@@ -157,9 +163,9 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
     std_error      = coef_mat[, "Std. Error"],
     stringsAsFactors = FALSE
   )
+  coefs_df[[date_col_name]] <- date_col_value
 
   meta_df <- data.frame(
-    snapshot_month     = snapshot_month,
     listing_type       = listing_type,
     city               = city,
     n_observations     = nrow(df),
@@ -167,6 +173,7 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
     residual_std_error = round(s$sigma, 6),
     stringsAsFactors   = FALSE
   )
+  meta_df[[date_col_name]] <- date_col_value
 
   # Feature means from the design matrix — used for marginalizing unspecified
   # inputs in the price calculator (β × mean gives expected contribution;
@@ -175,22 +182,49 @@ fit_city_model <- function(df, listing_type, city, snapshot_month) {
   feat_means <- colMeans(dm)
   feat_means <- feat_means[names(feat_means) != "(Intercept)"]
   feat_stats_df <- data.frame(
-    snapshot_month = snapshot_month,
     listing_type   = listing_type,
     city           = city,
     variable_name  = names(feat_means),
     feature_mean   = as.numeric(feat_means),
     stringsAsFactors = FALSE
   )
+  feat_stats_df[[date_col_name]] <- date_col_value
 
   list(coefficients = coefs_df, metadata = meta_df, feature_stats = feat_stats_df)
 }
 
 # ---- Main -------------------------------------------------------------------
 
-run_regression_models <- function() {
-  snapshot_month <- as.Date(format(Sys.Date(), "%Y-%m-01"))
-  message("Running hedonic regression models for ", snapshot_month)
+run_regression_models <- function(mode = "live") {
+  # mode = "live": train daily live model (snapshot_date = today)
+  # mode = "archive": train monthly snapshot (snapshot_month = 1st of month)
+
+  snapshot_date <- Sys.Date()
+  snapshot_month <- as.Date(format(snapshot_date, "%Y-%m-01"))
+
+  if (mode == "archive") {
+    snapshot_date_val <- NA
+    message("Running hedonic regression models (ARCHIVE) for ", snapshot_month)
+  } else {
+    snapshot_date_val <- snapshot_date
+    message("Running hedonic regression models (LIVE) for ", snapshot_date)
+
+    # Safety check: if monthly snapshot for this month doesn't exist, create it
+    con_temp <- get_con()
+    existing_month <- dbGetQuery(con_temp, sprintf(
+      "SELECT COUNT(*) as cnt FROM model_metadata WHERE snapshot_month = '%s'",
+      snapshot_month
+    ))
+    dbDisconnect(con_temp)
+
+    if (existing_month$cnt[1] == 0) {
+      message("  NOTE: Monthly snapshot missing for ", snapshot_month,
+              " — will create it alongside live model")
+      should_also_archive <- TRUE
+    } else {
+      should_also_archive <- FALSE
+    }
+  }
 
   con <- get_con()
   on.exit(dbDisconnect(con))
@@ -250,7 +284,7 @@ run_regression_models <- function() {
         next
       }
 
-      result <- fit_city_model(df, listing_type, city, snapshot_month)
+      result <- fit_city_model(df, listing_type, city, snapshot_date, snapshot_month, mode)
       if (!is.null(result)) {
         all_coefs      <- c(all_coefs,      list(result$coefficients))
         all_meta       <- c(all_meta,       list(result$metadata))
@@ -268,16 +302,42 @@ run_regression_models <- function() {
   meta_df       <- bind_rows(all_meta)
   feat_stats_df <- bind_rows(all_feat_stats)
 
-  dbExecute(con, sprintf("DELETE FROM model_coefficients  WHERE snapshot_month = '%s'", snapshot_month))
-  dbExecute(con, sprintf("DELETE FROM model_metadata      WHERE snapshot_month = '%s'", snapshot_month))
-  dbExecute(con, sprintf("DELETE FROM model_feature_stats WHERE snapshot_month = '%s'", snapshot_month))
+  # For live models: delete old live models (keep only today's)
+  # For archive models: append without deleting (creates historical time series)
+  if (mode == "live") {
+    dbExecute(con, sprintf("DELETE FROM model_coefficients  WHERE snapshot_date = '%s'", snapshot_date_val))
+    dbExecute(con, sprintf("DELETE FROM model_metadata      WHERE snapshot_date = '%s'", snapshot_date_val))
+    dbExecute(con, sprintf("DELETE FROM model_feature_stats WHERE snapshot_date = '%s'", snapshot_date_val))
+  }
 
   dbWriteTable(con, "model_coefficients",  coefs_df,      append = TRUE, row.names = FALSE)
   dbWriteTable(con, "model_metadata",      meta_df,       append = TRUE, row.names = FALSE)
   dbWriteTable(con, "model_feature_stats", feat_stats_df, append = TRUE, row.names = FALSE)
 
+  mode_label <- ifelse(mode == "archive", "archive", "live")
   message(sprintf(
-    "\n=== Done — %d models, %d coefficients, %d feature stats written for %s ===",
-    nrow(meta_df), nrow(coefs_df), nrow(feat_stats_df), snapshot_month
+    "\n=== Done — %d models, %d coefficients, %d feature stats written (%s) ===",
+    nrow(meta_df), nrow(coefs_df), nrow(feat_stats_df), mode_label
   ))
+
+  # If running live mode and monthly snapshot is missing, also save it
+  if (mode == "live" && exists("should_also_archive") && should_also_archive) {
+    message("\nAlso saving as monthly snapshot for ", snapshot_month)
+    coefs_archive <- coefs_df
+    coefs_archive$snapshot_month <- snapshot_month
+    coefs_archive$snapshot_date <- NULL
+
+    meta_archive <- meta_df
+    meta_archive$snapshot_month <- snapshot_month
+    meta_archive$snapshot_date <- NULL
+
+    feat_archive <- feat_stats_df
+    feat_archive$snapshot_month <- snapshot_month
+    feat_archive$snapshot_date <- NULL
+
+    dbWriteTable(con, "model_coefficients",  coefs_archive,  append = TRUE, row.names = FALSE)
+    dbWriteTable(con, "model_metadata",      meta_archive,   append = TRUE, row.names = FALSE)
+    dbWriteTable(con, "model_feature_stats", feat_archive,   append = TRUE, row.names = FALSE)
+    message("Monthly snapshot saved for ", snapshot_month)
+  }
 }

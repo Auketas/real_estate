@@ -61,8 +61,7 @@ df = get_city_summary(listing_type=type_key)
 df["price_display"] = df["median_price"]        * rate
 df["ppm2_display"]  = df["median_price_per_m2"] * rate
 
-snapshot_label = pd.to_datetime(df["snapshot_month"].iloc[0]).strftime("%b %Y") \
-    if not df.empty else "—"
+snapshot_label = "—"
 
 # ── Hero metrics ──────────────────────────────────────────────────────────────
 
