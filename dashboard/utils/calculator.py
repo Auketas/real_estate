@@ -93,8 +93,9 @@ def predict_price(
                 coef_name = "area"
                 coef_value = value
             else:
-                # Categorical: construct encoded name (e.g., tipologia_T2)
-                coef_name = f"{variable_name}_{value}"
+                # Categorical: construct encoded name (e.g., tipologia_fT2)
+                # R's factor encoding adds 'f' to variable names
+                coef_name = f"{variable_name}_f{value}"
                 coef_value = 1
 
             coef = coef_dict.get(coef_name, 0)
@@ -128,10 +129,7 @@ def get_available_neighbourhoods(
     """Extract list of neighbourhoods that appear in the model coefficients."""
     neighbourhood_vars = coefficients[
         coefficients["variable_name"].str.startswith("neighbourhood_")
-    ]["variable_name"].str.replace("neighbourhood_", "").tolist()
-
-    # Also add intercept/baseline neighbourhood if it exists
-    # (intercept represents the baseline, which is usually the first neighbourhood alphabetically)
+    ]["variable_name"].str.replace("neighbourhood_f", "").tolist()
 
     return sorted(neighbourhood_vars)
 
@@ -142,6 +140,6 @@ def get_available_tipologias(
     """Extract list of property types that appear in the model coefficients."""
     tipologia_vars = coefficients[
         coefficients["variable_name"].str.startswith("tipologia_")
-    ]["variable_name"].str.replace("tipologia_", "").tolist()
+    ]["variable_name"].str.replace("tipologia_f", "").tolist()
 
     return sorted(tipologia_vars)
