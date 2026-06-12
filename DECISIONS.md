@@ -79,6 +79,28 @@ Dashboard supports three levels: national overview → city comparison → neigh
 The pre-login screen doubles as a public landing page — product description, feature list,
 pricing, and a Subscribe button linking to LemonSqueezy. No separate marketing site needed at MVP.
 
+## Price calculator & regression models
+
+Users can predict property prices based on features (size, neighbourhood, amenities) via hedonic regression models trained on current listing data.
+
+**Two-stream approach:**
+- **Live models** (snapshot_date): trained daily at 19:00 UTC, used for current-day predictions in the calculator
+- **Monthly snapshots** (snapshot_month): archived on 1st of each month, immutable for historical comparison
+- **Safety mechanism**: if monthly snapshot fails to create on scheduled date, the daily job retroactively creates it
+
+**Model scope:**
+- Train on all currently-active listings in a city/listing_type combination
+- Minimum 50 listings required to train
+- Outliers: remove listings > 3 SD from city mean log(price/m²), keep area-missing listings
+- Features: area, new build (novo), garden, parking, terrace, balcony, floor (andar), property type (tipologia), energy efficiency (energia), neighbourhood
+- Outputs: coefficient estimates, standard errors, R², residual std error, feature means (for marginalization)
+- Algarve: skip rent models (data too sparse)
+
+**Dashboard integration:**
+- Neighbourhood Deep-dive: price calculator with monthly trend chart
+- Investment View: rental yield calculator (buy + rent predictions)
+- Both show optional "Price trend" expansion revealing how predicted prices evolved across months
+
 ## Immediate next steps
 1. Test all dashboard pages end-to-end on the live URL
 2. Add INE transaction data as first supplementary source
