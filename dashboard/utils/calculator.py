@@ -105,11 +105,11 @@ def predict_price(
     # Convert from log scale
     predicted_price = np.exp(predicted_log_price)
 
-    # Compute 80% confidence interval (more practical than 95%)
-    # CI = exp(log_price ± 1.28 × sqrt(variance))  [80% ≈ 1.28 SD]
+    # Compute 50% confidence interval (practical range for user decisions)
+    # CI = exp(log_price ± 0.67 × sqrt(variance))  [50% ≈ 0.67 SD]
     std_error = np.sqrt(variance)
-    ci_lower_log = predicted_log_price - 1.28 * std_error
-    ci_upper_log = predicted_log_price + 1.28 * std_error
+    ci_lower_log = predicted_log_price - 0.67 * std_error
+    ci_upper_log = predicted_log_price + 0.67 * std_error
     ci_lower = np.exp(ci_lower_log)
     ci_upper = np.exp(ci_upper_log)
 

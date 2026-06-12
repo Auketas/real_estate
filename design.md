@@ -175,12 +175,15 @@ Inputs (use Streamlit widgets in a clean horizontal or two-column layout):
 All feature inputs are optional. Users set only what they know or care about. Unspecified features are marginalized out: their expected contribution to price is computed using the feature's prevalence in the training data (`β × prevalence`), and their uncertainty adds to the prediction interval width (`β² × p × (1−p)` per unspecified binary feature). The result is that specifying more features narrows the confidence band; leaving features blank widens it honestly rather than silently assuming a value. This should be communicated to the user with a short line like "Add more details to narrow the estimate."
 
 Outputs:
-- Predicted price with confidence interval, displayed as a prominent metric with range shown below (e.g. "€385,000 — estimated range €340,000–€430,000")
-- Confidence interval: 80% (not 95%) to show practically useful bands that don't discourage usage. Wider than commercial tools but honest about model uncertainty.
+- Predicted price with confidence interval, displayed as a prominent metric with range shown below (e.g. "€385,000 — estimated range €355,000–€420,000")
+- **Confidence interval: 50% (not 95%)**. At 80% CI, rent predictions were useless (€1,000–€2,200 for a ~€1,500 rental). 50% CI gives actionable ranges while remaining statistically honest. Narrower than commercial tools but prevents false precision and encourages feature specification.
+- Confidence indicator: High (±<25%), Medium (±25–40%), Low (±>40%). Shows when users add more details.
 - Interval visibly widens as fewer features are specified — this is intentional and honest
 - "Up X% from last month" / "Down X% over 6 months" as delta indicators (deferred until we have multiple monthly snapshots)
 - Small bar or line chart showing predicted price for these specifications over available monthly history (deferred: will implement once we have >3 months of historical coefficients)
 - Number of listings that informed the estimate, shown as a small caption for transparency
+
+**Currency converter:** Located in sidebar (top of each page). Always accessible without scrolling, prominent enough for target audience (expats, international buyers), doesn't distract from core features. Label "Currency" is self-explanatory.
 
 Implementation note: predictions are served from a precomputed monthly coefficients table in Neon (see Database section). Apply coefficients to user inputs at query time. Do not run regression live. Feature prevalences (needed for marginalization) are stored in `model_feature_stats` (see Database section).
 

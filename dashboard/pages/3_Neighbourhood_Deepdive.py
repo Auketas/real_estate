@@ -310,14 +310,14 @@ else:
                     range_width = ci_upper - ci_lower
                     range_pct = (range_width / predicted_price * 100) if predicted_price > 0 else 100
 
-                    if range_pct < 30:
+                    if range_pct < 25:
                         confidence_color = "🟢 High confidence"
-                    elif range_pct < 60:
+                    elif range_pct < 40:
                         confidence_color = "🟡 Medium confidence"
                     else:
                         confidence_color = "🔴 Low confidence (add details)"
 
-                    st.caption(f"Confidence: {confidence_color} (80% range: ±{range_pct:.0f}%)")
+                    st.caption(f"Confidence: {confidence_color} (50% range: ±{range_pct:.0f}%)")
 
                 # Helper text
                 if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
