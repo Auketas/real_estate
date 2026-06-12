@@ -23,9 +23,15 @@ ALGARVE_CITIES <- c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
 # ---- Helpers ----------------------------------------------------------------
 
 # Impute binary feature: NA treated as absent (0)
+# Handles both numeric (1/0) and text ("sim"/"nao", "yes"/"no") values
 impute_binary <- function(x) {
-  x_num <- suppressWarnings(as.numeric(x))
-  ifelse(is.na(x_num), 0L, as.integer(x_num != 0))
+  x <- as.character(x)
+  x <- tolower(trimws(x))
+  # Convert text values to numeric
+  x_binary <- ifelse(x %in% c("sim", "yes", "true", "1"), 1,
+                     ifelse(x %in% c("nao", "no", "false", "0"), 0, NA))
+  # Impute NAs as 0 (absent)
+  ifelse(is.na(x_binary), 0L, as.integer(x_binary))
 }
 
 # Impute numeric with column median

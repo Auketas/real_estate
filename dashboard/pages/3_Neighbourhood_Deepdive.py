@@ -337,16 +337,3 @@ else:
                             st.line_chart(df_trend.set_index("Month")["Price"])
                             st.caption("How this property's predicted price has changed across monthly snapshots")
 
-    # ── Neighbourhood Browse (Secondary) ────────────────────────────────────────
-    st.divider()
-    st.subheader(f"Browse neighbourhoods — {region}")
-    df_nbhd["ppm2_display"] = df_nbhd["median_price_per_m2"] * rate
-    fig_bar = px.bar(
-        df_nbhd.sort_values("ppm2_display", ascending=False),
-        x="neighbourhood", y="ppm2_display",
-        hover_data={"avg_time_on_market_days": ":.0f"},
-        labels={"ppm2_display": f"Median {symbol}/m²", "neighbourhood": "",
-                "avg_time_on_market_days": "Avg. days on market"},
-    )
-    fig_bar.update_xaxes(tickangle=45)
-    st.plotly_chart(fig_bar, use_container_width=True)

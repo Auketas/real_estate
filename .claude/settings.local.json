@@ -22,7 +22,15 @@
       "Bash(python3 -c \"import psycopg2; print\\('ok'\\)\")",
       "Bash(python *)",
       "Bash(gh workflow *)",
-      "Bash(curl -X POST -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: token __CMDSUB_OUTPUT__' https://api.github.com/repos/Auketas/real_estate/actions/workflows/monthly_aggregation.yml/dispatches -d '{\"ref\":\"main\"}')"
+      "Bash(curl -X POST -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: token __CMDSUB_OUTPUT__' https://api.github.com/repos/Auketas/real_estate/actions/workflows/monthly_aggregation.yml/dispatches -d '{\"ref\":\"main\"}')",
+      "Bash(Rscript *)",
+      "Bash(python3)",
+      "Bash(R --vanilla --slave -e \"source\\('code/scripts/backfill_neighbourhoods_spatial_join.R', echo=FALSE\\)\" --slave)",
+      "Bash(python3 -m py_compile dashboard/utils/calculator.py)",
+      "Skill(run)",
+      "Bash(streamlit run *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":8501\")"
     ]
   }
 }
