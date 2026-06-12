@@ -373,6 +373,24 @@ Log and alert on any violations rather than silently writing bad data. Do not ov
 
 ---
 
+## Geographical Matching: Listings to Neighbourhoods (GeoJSON)
+
+**Method: Spatial join via lat/lon coordinates (NOT neighbourhood name matching)**
+
+All listings are matched to GeoJSON parish polygons using their `lat`/`lon` coordinates via point-in-polygon spatial join. The `neighbourhood` column is populated with the GeoJSON feature name (`NAME_3` for Porto/Lisboa/Setúbal, `NAME_2` for Algarve) from the matched polygon. This approach:
+- Avoids reliance on user-entered neighbourhood text (which is often misspelled or inconsistent across platforms)
+- Matches ~99% of listings (only missing those with invalid coordinates)
+- Makes `neighbourhood_lookup.json` obsolete — no name-based mapping needed
+
+**In the dashboard:**
+- Choropleth maps use the `neighbourhood` field directly as GeoJSON feature names
+- No lookup table required; `neighbourhood` → `NAME_3` match is 1:1 and pre-computed at scrape time
+- All neighbourhood data in `neighbourhood_latest_summary` and `neighbourhood_monthly_summary` is keyed by the correct GeoJSON feature name
+
+**Backfill history:** Spatial join backfill completed June 2026; all ~35,500 listings with valid coordinates matched to GeoJSON polygons. Any unmatched listings have invalid/ocean coordinates.
+
+---
+
 ## Dual Data Source Handling (Imovirtual + Casa Sapo)
 
 Data comes from two platforms stored in `ads_buy` and `ads_rent`. The `platform` column already exists on both tables. Beyond deduplication, the following considerations apply.
