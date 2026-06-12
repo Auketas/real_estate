@@ -194,10 +194,13 @@ def get_latest_live_model_date(listing_type: str) -> str:
     Returns date string in ISO format (YYYY-MM-DD), or None if no models exist.
     """
     sql = text("""
-        SELECT COALESCE(MAX(snapshot_date), MAX(snapshot_month)) AS latest_date
+        SELECT
+            CASE
+                WHEN MAX(snapshot_date) IS NOT NULL THEN MAX(snapshot_date)
+                ELSE MAX(snapshot_month)
+            END AS latest_date
         FROM model_metadata
         WHERE listing_type = :listing_type
-          AND (snapshot_date IS NOT NULL OR snapshot_month IS NOT NULL)
     """)
     params = {"listing_type": listing_type}
     with get_engine().connect() as conn:

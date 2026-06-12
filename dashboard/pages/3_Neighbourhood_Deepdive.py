@@ -44,7 +44,7 @@ REGIONS = {
                     lat=37.13, lon=-8.25, zoom=8),
 }
 
-COLOR_SCALE = ["#fee5d9", "#a1260d"]  # Light pink → dark red for more contrast
+COLOR_SCALE = ["#ffffcc", "#800000"]  # Pale yellow → dark maroon for maximum contrast
 
 
 def weighted_avg(group, val_col):
