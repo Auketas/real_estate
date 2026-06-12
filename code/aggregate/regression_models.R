@@ -158,7 +158,7 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   message(coef_lines)
 
   date_col_name <- ifelse(mode == "archive", "snapshot_month", "snapshot_date")
-  date_col_value <- ifelse(mode == "archive", snapshot_month, snapshot_date)
+  date_col_value <- ifelse(mode == "archive", as.character(snapshot_month), as.character(snapshot_date))
 
   coefs_df <- data.frame(
     listing_type   = listing_type,
@@ -329,15 +329,15 @@ run_regression_models <- function(mode = "live") {
   if (mode == "live" && exists("should_also_archive") && should_also_archive) {
     message("\nAlso saving as monthly snapshot for ", snapshot_month)
     coefs_archive <- coefs_df
-    coefs_archive$snapshot_month <- snapshot_month
+    coefs_archive$snapshot_month <- as.character(snapshot_month)
     coefs_archive$snapshot_date <- NULL
 
     meta_archive <- meta_df
-    meta_archive$snapshot_month <- snapshot_month
+    meta_archive$snapshot_month <- as.character(snapshot_month)
     meta_archive$snapshot_date <- NULL
 
     feat_archive <- feat_stats_df
-    feat_archive$snapshot_month <- snapshot_month
+    feat_archive$snapshot_month <- as.character(snapshot_month)
     feat_archive$snapshot_date <- NULL
 
     dbWriteTable(con, "model_coefficients",  coefs_archive,  append = TRUE, row.names = FALSE)
