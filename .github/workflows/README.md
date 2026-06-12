@@ -32,11 +32,21 @@ This file describes what each workflow does and when it runs. All workflows use 
 - **Steps:**
   1. Copies `city_latest_summary` and `neighbourhood_latest_summary` → `_monthly_` archive tables
   2. Computes `monthly_price_change_pct` by comparing to prior month
-  3. Trains hedonic OLS regression models (buy & rent per city) and writes coefficients to `model_coefficients`
-  4. Stores model metadata and feature statistics for price calculators
+  3. Trains hedonic OLS regression models (buy & rent per city) in **archive mode** (snapshot_month) and writes coefficients
+  4. Stores model metadata and feature statistics for trend analysis
   5. Runs sanity checks on implausible values
-- **Output:** `city_monthly_summary`, `neighbourhood_monthly_summary`, `model_coefficients`, `model_feature_stats`, `model_metadata`
-- **Notes:** Required for calculator features and trend analysis
+- **Output:** `city_monthly_summary`, `neighbourhood_monthly_summary`, `model_coefficients`, `model_feature_stats`, `model_metadata` (with `snapshot_month`)
+- **Notes:** Creates immutable historical monthly snapshots; safety: if this job fails on the 1st, the daily regression job will detect missing month and create it retroactively
+
+### 5. **regression_models_daily** (`regression_models_daily.yml`)
+- **What:** Trains fresh hedonic regression models every day for live price predictions
+- **When:** Daily at 19:00 UTC (after both daily aggregation completes), or manually via workflow_dispatch
+- **Steps:**
+  1. Trains hedonic OLS regression models (buy & rent per city) in **live mode** (snapshot_date = today)
+  2. Stores coefficients, metadata, and feature statistics with `snapshot_date`
+  3. Safety check: detects if monthly snapshot for current month is missing; if so, also creates archive snapshot
+- **Output:** `model_coefficients`, `model_feature_stats`, `model_metadata` (with `snapshot_date`; optionally also with `snapshot_month` if month missing)
+- **Notes:** Live models always current; used by price calculator. Deletes previous day's live model but never touches monthly archives. Dashboard always queries most recent `snapshot_date` for predictions.
 
 ---
 
@@ -148,13 +158,13 @@ These workflows were created during Phase 7b (neighbourhood matching) and typica
 
 ---
 
-## Regression Models (Alternative / Legacy)
+## Regression Models
 
 ### 17. **regression_models** (`regression_models.yml`)
-- **What:** Standalone hedonic regression model training
+- **What:** Standalone monthly regression model training (archive mode)
 - **When:** Manual trigger only
-- **Notes:** Functionality is now included in `monthly_aggregation.yml` — this is kept for standalone runs if needed
-- **Use case:** Re-train models outside of monthly schedule for testing
+- **Notes:** Functionality is now included in `monthly_aggregation.yml` as the second job — this is kept as a backup for manual archive runs if needed
+- **Use case:** Re-train and archive a month's models outside of scheduled monthly job (e.g., fixing a failed monthly run)
 
 ---
 
@@ -165,9 +175,10 @@ These workflows were created during Phase 7b (neighbourhood matching) and typica
 | 06:00 | `run_imovirtual_scraper` | Collect listings from imovirtual |
 | 18:00 | `run_casasapo_scraper` | Collect listings from casa sapo |
 | 20:00 | `daily_aggregation` | Build daily summary tables for dashboard |
+| 19:00 | `regression_models_daily` | Train fresh live models for price calculator |
 | 21:00 | `Analyse Neighbourhood Coverage` | Check mapping quality |
 | Every 10 min | `keep_alive` | Keep Streamlit app responsive |
-| **1st of month, 06:00** | `monthly_aggregation` | Archive month & train models |
+| **1st of month, 06:00** | `monthly_aggregation` | Archive month & train models (also triggers regression_models job) |
 
 **Manual triggers (workflow_dispatch):** Any workflow can be triggered manually via GitHub Actions UI for testing or emergency re-runs.
 
