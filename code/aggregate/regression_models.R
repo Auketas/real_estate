@@ -50,7 +50,7 @@ collapse_sparse <- function(x, min_n, other_label) {
   factor(x)
 }
 
-# Create summary tables if they don't exist yet
+# Create summary tables if they don't exist yet; add missing columns to existing tables
 create_tables_if_missing <- function(con) {
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_coefficients (
@@ -64,6 +64,8 @@ create_tables_if_missing <- function(con) {
       std_error      NUMERIC,
       created_at     TIMESTAMP DEFAULT NOW()
     )")
+  dbExecute(con, "ALTER TABLE model_coefficients ADD COLUMN IF NOT EXISTS snapshot_date DATE")
+
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_metadata (
       id                 SERIAL PRIMARY KEY,
@@ -76,6 +78,8 @@ create_tables_if_missing <- function(con) {
       residual_std_error NUMERIC,
       created_at         TIMESTAMP DEFAULT NOW()
     )")
+  dbExecute(con, "ALTER TABLE model_metadata ADD COLUMN IF NOT EXISTS snapshot_date DATE")
+
   dbExecute(con, "
     CREATE TABLE IF NOT EXISTS model_feature_stats (
       id             SERIAL PRIMARY KEY,
@@ -87,6 +91,7 @@ create_tables_if_missing <- function(con) {
       feature_mean   NUMERIC,
       created_at     TIMESTAMP DEFAULT NOW()
     )")
+  dbExecute(con, "ALTER TABLE model_feature_stats ADD COLUMN IF NOT EXISTS snapshot_date DATE")
 }
 
 # Fit one hedonic OLS model; returns list(coefficients, metadata) or NULL
