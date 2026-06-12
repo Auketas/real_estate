@@ -86,12 +86,12 @@ def predict_price(
             # e.g., tipologia="T2" becomes "tipologia_T2", binary flags stay as-is
 
             if variable_name in ["novo", "jardim", "garagem", "terraco", "varanda"]:
-                # Boolean/binary: use as-is, value is 0 or 1
-                coef_name = variable_name
+                # Boolean/binary: model stores as "X_imp", value is 0 or 1
+                coef_name = f"{variable_name}_imp"
                 coef_value = value
             elif variable_name == "area":
-                # Continuous: use coefficient for 'area'
-                coef_name = "area"
+                # Continuous: model stores as "area_imp"
+                coef_name = "area_imp"
                 coef_value = value
             else:
                 # Categorical: construct encoded name (e.g., tipologia_fT2)
