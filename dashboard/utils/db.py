@@ -141,7 +141,7 @@ def get_exchange_rates() -> dict:
     return rates
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def get_model_coefficients(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch regression coefficients for a city, listing type, and month.
@@ -158,7 +158,7 @@ def get_model_coefficients(city: str, listing_type: str, snapshot_month: str) ->
         return pd.read_sql(sql, conn, params=params)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def get_model_metadata(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch model-level metadata (n_observations, r_squared, residual_std_error).
@@ -175,7 +175,7 @@ def get_model_metadata(city: str, listing_type: str, snapshot_month: str) -> pd.
         return pd.read_sql(sql, conn, params=params)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch feature means/prevalences for marginalization of unspecified inputs.
