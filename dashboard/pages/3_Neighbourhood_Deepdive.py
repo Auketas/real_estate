@@ -309,7 +309,7 @@ else:
                     else:
                         confidence_color = "🔴 Low confidence (add details)"
 
-                    st.caption(f"Confidence: {confidence_color} (±{range_pct:.0f}% range)")
+                    st.caption(f"Confidence: {confidence_color} (80% range: ±{range_pct:.0f}%)")
 
                 # Helper text
                 if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
