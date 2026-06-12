@@ -61,7 +61,12 @@ df = get_city_summary(listing_type=type_key)
 df["price_display"] = df["median_price"]        * rate
 df["ppm2_display"]  = df["median_price_per_m2"] * rate
 
-snapshot_label = "—"
+# Get snapshot date for freshness metric
+if not df.empty and "snapshot_date" in df.columns:
+    snapshot_date = pd.to_datetime(df["snapshot_date"].iloc[0])
+    snapshot_label = snapshot_date.strftime("%b %d, %Y")
+else:
+    snapshot_label = ""
 
 # ── Hero metrics ──────────────────────────────────────────────────────────────
 
@@ -69,7 +74,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Median price",        fmt_price(df["median_price"].median()))
 col2.metric(f"Median {symbol}/m²", fmt_price(df["median_price_per_m2"].median()))
 col3.metric("Cities covered",      df["city"].nunique())
-col4.metric("Data freshness",      f"Updated {snapshot_label}")
+col4.metric("Data freshness",      snapshot_label)
 
 st.divider()
 
@@ -91,14 +96,12 @@ fig_map = px.scatter_mapbox(
     hover_data={
         "price_display":          True,
         "ppm2_display":           True,
-        "listing_count":          True,
         "avg_time_on_market_days":":.0f",
-        "lat": False, "lon": False, "size_plot": False,
+        "lat": False, "lon": False, "size_plot": False, "listing_count": False,
     },
     labels={
         "price_display":           f"Median price ({symbol})",
         "ppm2_display":            f"Median {symbol}/m²",
-        "listing_count":           "Listings",
         "avg_time_on_market_days": "Avg. days on market",
     },
     mapbox_style="carto-positron",
