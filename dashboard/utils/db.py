@@ -189,12 +189,15 @@ def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -
 @st.cache_data(ttl=60)
 def get_latest_live_model_date(listing_type: str) -> str:
     """
-    Fetch the most recent snapshot_date (live model) for a listing type.
+    Fetch the most recent model date for a listing type.
+    Prefers snapshot_date (live/daily models), falls back to snapshot_month (archive/monthly models).
     Returns date string in ISO format (YYYY-MM-DD), or None if no models exist.
     """
     sql = text("""
-        SELECT MAX(snapshot_date) AS latest_date FROM model_metadata
-        WHERE listing_type = :listing_type AND snapshot_date IS NOT NULL
+        SELECT COALESCE(MAX(snapshot_date), MAX(snapshot_month)) AS latest_date
+        FROM model_metadata
+        WHERE listing_type = :listing_type
+          AND (snapshot_date IS NOT NULL OR snapshot_month IS NOT NULL)
     """)
     params = {"listing_type": listing_type}
     with get_engine().connect() as conn:
