@@ -82,7 +82,7 @@ st.dataframe(
 # ---- Rental Yield Calculator ────────────────────────────────────────────────
 
 st.divider()
-st.subheader("Rental Yield Calculator")
+st.subheader("Rental Yield Estimator")
 
 st.caption("Estimate buy price, monthly rent, and gross yield for a property specification. Lisboa, Porto, and Setúbal only.")
 

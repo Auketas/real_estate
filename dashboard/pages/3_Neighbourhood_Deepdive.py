@@ -192,9 +192,9 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── Price Calculator ───────────────────────────────────────────────────────
+    # ── Price Estimator ───────────────────────────────────────────────────────
     st.divider()
-    st.subheader("Price Calculator")
+    st.subheader("Price Estimator")
 
     # Get latest live model for current predictions
     first_city = cfg["cities"][0]
@@ -306,7 +306,7 @@ else:
                     st.code(bar, language=None)
 
                 # Helper text
-                if any(v is None for v in inputs.values() if k != "neighbourhood" and k != "tipologia" for k in []):
+                if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
                     st.caption("💡 Add more details to narrow the estimate")
 
                 st.write("")
