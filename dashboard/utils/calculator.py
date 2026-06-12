@@ -54,7 +54,8 @@ def predict_price(
     coef_dict = {row["variable_name"]: row["coefficient"]
                  for _, row in coefficients.iterrows()}
 
-    intercept = coef_dict.get("intercept", 0)
+    # R's lm() stores intercept as "(Intercept)" with parentheses
+    intercept = coef_dict.get("(Intercept)", coef_dict.get("intercept", 0))
     predicted_log_price = intercept
 
     # Track total variance contribution
