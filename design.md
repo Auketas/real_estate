@@ -176,9 +176,10 @@ All feature inputs are optional. Users set only what they know or care about. Un
 
 Outputs:
 - Predicted price with confidence interval, displayed as a prominent metric with range shown below (e.g. "€385,000 — estimated range €340,000–€430,000")
+- Confidence interval: 80% (not 95%) to show practically useful bands that don't discourage usage. Wider than commercial tools but honest about model uncertainty.
 - Interval visibly widens as fewer features are specified — this is intentional and honest
-- "Up X% from last month" / "Down X% over 6 months" as delta indicators
-- Small bar or line chart showing predicted price for these specifications over available monthly history
+- "Up X% from last month" / "Down X% over 6 months" as delta indicators (deferred until we have multiple monthly snapshots)
+- Small bar or line chart showing predicted price for these specifications over available monthly history (deferred: will implement once we have >3 months of historical coefficients)
 - Number of listings that informed the estimate, shown as a small caption for transparency
 
 Implementation note: predictions are served from a precomputed monthly coefficients table in Neon (see Database section). Apply coefficients to user inputs at query time. Do not run regression live. Feature prevalences (needed for marginalization) are stored in `model_feature_stats` (see Database section).
