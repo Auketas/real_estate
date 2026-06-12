@@ -172,13 +172,16 @@ else:
     df_choro["ppm2_rounded"] = df_choro["ppm2_display"].round(0)
     df_choro["price_rounded"] = df_choro["price_display"].round(0)
 
-    # Choose color scale based on listing type: rent uses perceptually uniform scale
+    # Choose color scale and column based on listing type
+    # Rent: use raw price (more intuitive for renters) with yellow-orange-red scale
+    # Buy: use price per m² (better for comparing quality) with custom scale
     color_scale = COLOR_SCALE_RENT if type_key == "rent" else COLOR_SCALE_BUY
+    color_column = "price_display" if type_key == "rent" else "ppm2_display"
 
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
-        color="ppm2_display",
+        color=color_column,
         color_continuous_scale=color_scale,
         mapbox_style="carto-positron",
         zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
@@ -196,8 +199,10 @@ else:
             "avg_time_on_market":     "Avg. days on market",
         },
     )
+    # Update color bar title based on what's being displayed
+    colorbar_title = f"{symbol}" if type_key == "rent" else f"{symbol}/m²"
     fig.update_layout(
-        coloraxis_colorbar=dict(title=f"{symbol}/m²"),
+        coloraxis_colorbar=dict(title=colorbar_title),
         margin=dict(l=0, r=0, t=0, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)
