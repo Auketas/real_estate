@@ -107,6 +107,10 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   df$varanda_imp <- impute_binary(df$varanda)
 
   # Categorical: collapse sparse levels
+  # Combine T5, T6, T7, T8, T9+ into T5+ to avoid overfitting rare property types
+  df$tipologia <- as.character(df$tipologia)
+  df$tipologia[df$tipologia %in% c("T5", "T6", "T7", "T8", "T9+")] <- "T5+"
+
   df$tipologia_f     <- collapse_sparse(df$tipologia,    MIN_CATEGORY, "other_tipo")
   df$neighbourhood_f <- collapse_sparse(df$neighbourhood, MIN_CATEGORY, "other_nbhd")
   df$energia_f       <- collapse_sparse(
