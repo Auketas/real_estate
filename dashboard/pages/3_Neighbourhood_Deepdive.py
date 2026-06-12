@@ -294,16 +294,22 @@ else:
                     )
 
                 with range_col:
-                    # Visual confidence band
+                    # Estimated range
                     st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
 
-                    # Simple ASCII representation of the band
+                    # Confidence indicator: narrow → green, medium → yellow, wide → red
+                    # Based on range as % of central estimate
                     range_width = ci_upper - ci_lower
-                    normalized_point = (predicted_price - ci_lower) / range_width if range_width > 0 else 0.5
-                    bar_length = 50
-                    bar_pos = int(normalized_point * bar_length)
-                    bar = "━" * bar_pos + "●" + "━" * (bar_length - bar_pos)
-                    st.code(bar, language=None)
+                    range_pct = (range_width / predicted_price * 100) if predicted_price > 0 else 100
+
+                    if range_pct < 30:
+                        confidence_color = "🟢 High confidence"
+                    elif range_pct < 60:
+                        confidence_color = "🟡 Medium confidence"
+                    else:
+                        confidence_color = "🔴 Low confidence (add details)"
+
+                    st.caption(f"Confidence: {confidence_color} (±{range_pct:.0f}% range)")
 
                 # Helper text
                 if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
