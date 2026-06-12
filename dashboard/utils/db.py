@@ -186,7 +186,6 @@ def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -
         return pd.read_sql(sql, conn, params=params)
 
 
-@st.cache_data(ttl=60)
 def get_latest_live_model_date(listing_type: str) -> str:
     """
     Fetch the most recent model date for a listing type.
