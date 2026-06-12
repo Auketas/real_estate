@@ -12,6 +12,32 @@ This document defines the agreed design direction, page structure, visual langua
 
 ---
 
+## 🔴 Known Issues — START HERE FOR NEXT SESSION
+
+These issues were identified June 12, 2026 and should be prioritized for the next session:
+
+1. **Rental map coverage much sparser than buy map**
+   - Phenomenon: Neighbourhood Deep-Dive rent view shows far fewer shaded areas than buy view for the same region
+   - Likely causes: Rent data much sparser; some neighbourhoods below 10-listing aggregation threshold; or margin settings in choropleth cutting off labels
+   - Fix: Investigate rent vs buy listing counts per neighbourhood; consider lowering aggregation threshold for rent (currently 10 listings); review GeoJSON rendering
+
+2. **Setúbal should be part of Lisbon, not separate**
+   - Current state: Almada, Costa da Caparica, Caparica appear in a separate "Setúbal" region in Neighbourhood Deep-Dive selector
+   - Decision: Fold Setúbal cities into "Lisbon region" selector instead of standalone region
+   - Impact: Changes data/ui.py region mappings, Neighbourhood Deep-Dive city grouping, Investment View YIELD_CITIES list
+
+3. **Lisboa map doesn't look complete**
+   - Phenomenon: Some central Lisbon neighbourhoods appear unshaded on choropleth despite having data
+   - Likely causes: Outlier filtering in aggregation; spatial join mismatches; or GeoJSON feature names not matching database neighbourhood values
+   - Fix: Run diagnostic query on neighbourhood_latest_summary for "lisboa" buy data; verify all feature names in GeoJSON match database exactly; check if price per m² outliers are silently filtering neighbourhoods
+
+4. **Algarve neighbourhood bar chart is broken**
+   - Specific issue: Chart not rendering correctly or showing wrong data
+   - Context: Algarve is buy-only; neighbourhood thresholds may be too strict for sparse Algarve data
+   - Fix: Check Algarve-specific thresholds in dashboard code (likely in `3_Neighbourhood_Deepdive.py`); verify data exists; may need separate aggregation logic for Algarve
+
+---
+
 ---
 
 ## Target Audience
