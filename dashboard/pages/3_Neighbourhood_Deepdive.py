@@ -137,21 +137,10 @@ else:
         st.warning("No neighbourhood data available.")
         st.stop()
 
-    # Map DB neighbourhood names to GeoJSON feature names
-    df_nbhd["feature_name"] = df_nbhd["neighbourhood"].map(LOOKUP)
-    df_matched = df_nbhd.dropna(subset=["feature_name"]).copy()
-
-    # Aggregate: multiple DB neighbourhoods may map to the same parish polygon
-    df_choro = (
-        df_matched.groupby("feature_name")
-        .apply(lambda x: pd.Series({
-            "median_price_per_m2": weighted_avg(x, "median_price_per_m2"),
-            "median_price":        weighted_avg(x, "median_price"),
-            "avg_time_on_market":  weighted_avg(x, "avg_time_on_market_days"),
-            "listing_count":       int(x["listing_count"].sum()),
-        }))
-        .reset_index()
-    )
+    # Neighbourhood field already contains GeoJSON feature names (from spatial join backfill via lat/lon)
+    # No mapping needed; use directly as feature_name for choropleth
+    df_nbhd["feature_name"] = df_nbhd["neighbourhood"]
+    df_choro = df_nbhd.copy()
     df_choro["ppm2_display"]  = df_choro["median_price_per_m2"] * rate
     df_choro["price_display"] = df_choro["median_price"]        * rate
 
