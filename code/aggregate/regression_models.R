@@ -149,8 +149,14 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   if (is.null(fit)) return(NULL)
 
   # Extract coefficients at optimal (1-SE) lambda
-  coefs <- as.numeric(coef(fit, s = "lambda.1se"))
-  names(coefs) <- rownames(coef(fit, s = "lambda.1se"))
+  # coef() returns a sparse matrix; convert to dense and extract as vector
+  coef_matrix <- coef(fit, s = "lambda.1se")
+  coefs <- as.numeric(coef_matrix)
+  names(coefs) <- rownames(coef_matrix)
+
+  # Deduplicate: keep only the first occurrence of each variable name
+  # (glmnet sometimes includes both sparse and dense forms of coefficients)
+  coefs <- coefs[!duplicated(names(coefs))]
 
   # Compute R² using predictions at optimal lambda
   y_pred <- as.numeric(predict(fit, newx = dm, s = "lambda.1se"))
