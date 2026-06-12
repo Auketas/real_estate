@@ -27,7 +27,7 @@ jobs:
 
       - name: Install R packages
         run: |
-          Rscript -e 'install.packages(c("DBI", "RPostgres", "dplyr"), repos="https://cloud.r-project.org")'
+          Rscript -e 'install.packages(c("DBI", "RPostgres", "dplyr", "glmnet"), repos="https://cloud.r-project.org")'
 
       - name: Run regression models
         run: |

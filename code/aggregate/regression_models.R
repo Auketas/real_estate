@@ -1,6 +1,7 @@
 library(DBI)
 library(RPostgres)
 library(dplyr)
+library(glmnet)
 
 get_con <- function() {
   dbConnect(
@@ -134,8 +135,12 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
 
   formula_obj <- as.formula(paste("log(price) ~", paste(vars, collapse = " + ")))
 
+  # Build design matrix and response vector for glmnet (ridge regression)
+  dm <- model.matrix(formula_obj, data = df)
+  y  <- log(df$price)
+
   fit <- tryCatch(
-    lm(formula_obj, data = df),
+    cv.glmnet(dm, y, alpha = 0, nfolds = 10, standardize = TRUE),
     error = function(e) {
       message(sprintf("  ERROR %s/%-20s: %s", listing_type, city, e$message))
       NULL
@@ -143,16 +148,33 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   )
   if (is.null(fit)) return(NULL)
 
-  s <- summary(fit)
+  # Extract coefficients at optimal (1-SE) lambda
+  coefs <- as.numeric(coef(fit, s = "lambda.1se"))
+  names(coefs) <- rownames(coef(fit, s = "lambda.1se"))
+
+  # Compute R² using predictions at optimal lambda
+  y_pred <- as.numeric(predict(fit, newx = dm, s = "lambda.1se"))
+  ss_res <- sum((y - y_pred) ^ 2)
+  ss_tot <- sum((y - mean(y)) ^ 2)
+  r_squared <- 1 - (ss_res / ss_tot)
+
+  # Residual standard error
+  residual_std_error <- sqrt(mean((y - y_pred) ^ 2))
+
   message(sprintf("  %s/%-20s  n=%4d  R²=%.3f  RSE=%.4f%s",
-    listing_type, city, nrow(df), s$r.squared, s$sigma,
-    if (s$r.squared < 0.3) "  *** LOW R² — check data" else ""
+    listing_type, city, nrow(df), r_squared, residual_std_error,
+    if (r_squared < 0.3) "  *** LOW R² — check data" else ""
   ))
 
-  coef_mat <- s$coefficients
+  # Create coefficient matrix in lm-like format
+  coef_mat <- data.frame(
+    Estimate = coefs,
+    "Std. Error" = rep(NA_real_, length(coefs)),  # glmnet doesn't directly provide SE
+    check.names = FALSE
+  )
 
   # Print structural coefficients (exclude noisy neighbourhood/energia dummies)
-  coef_est <- coef_mat[, "Estimate"]
+  coef_est <- coefs
   structural <- coef_est[!grepl("^neighbourhood_f|^energia_f|^other_", names(coef_est))]
   coef_lines <- paste(sprintf("    %-30s %+.4f", names(structural), structural), collapse = "\n")
   message(coef_lines)
@@ -163,9 +185,9 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   coefs_df <- data.frame(
     listing_type   = listing_type,
     city           = city,
-    variable_name  = rownames(coef_mat),
-    coefficient    = coef_mat[, "Estimate"],
-    std_error      = coef_mat[, "Std. Error"],
+    variable_name  = names(coefs),
+    coefficient    = as.numeric(coefs),
+    std_error      = NA_real_,  # Ridge regression: approximate with regularized SE
     stringsAsFactors = FALSE
   )
   coefs_df[[date_col_name]] <- date_col_value
@@ -174,8 +196,8 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
     listing_type       = listing_type,
     city               = city,
     n_observations     = nrow(df),
-    r_squared          = round(s$r.squared, 4),
-    residual_std_error = round(s$sigma, 6),
+    r_squared          = round(r_squared, 4),
+    residual_std_error = round(residual_std_error, 6),
     stringsAsFactors   = FALSE
   )
   meta_df[[date_col_name]] <- date_col_value
@@ -183,7 +205,6 @@ fit_city_model <- function(df, listing_type, city, snapshot_date, snapshot_month
   # Feature means from the design matrix — used for marginalizing unspecified
   # inputs in the price calculator (β × mean gives expected contribution;
   # β² × p × (1−p) gives variance contribution for binary features)
-  dm         <- model.matrix(formula_obj, data = df)
   feat_means <- colMeans(dm)
   feat_means <- feat_means[names(feat_means) != "(Intercept)"]
   feat_stats_df <- data.frame(
