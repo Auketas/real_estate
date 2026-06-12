@@ -145,11 +145,13 @@ def get_exchange_rates() -> dict:
 def get_model_coefficients(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch regression coefficients for a city, listing type, and month.
+    snapshot_month parameter works for both snapshot_date and snapshot_month columns.
     Returns: id, snapshot_month, listing_type, city, variable_name, coefficient, std_error
     """
     sql = text("""
         SELECT * FROM model_coefficients
-        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+        WHERE city = :city AND listing_type = :listing_type
+          AND (snapshot_date = :snapshot_month OR snapshot_month = :snapshot_month)
     """)
     params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
     with get_engine().connect() as conn:
@@ -160,11 +162,13 @@ def get_model_coefficients(city: str, listing_type: str, snapshot_month: str) ->
 def get_model_metadata(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch model-level metadata (n_observations, r_squared, residual_std_error).
+    snapshot_month parameter works for both snapshot_date and snapshot_month columns.
     Returns: id, snapshot_month, listing_type, city, n_observations, r_squared, residual_std_error
     """
     sql = text("""
         SELECT * FROM model_metadata
-        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+        WHERE city = :city AND listing_type = :listing_type
+          AND (snapshot_date = :snapshot_month OR snapshot_month = :snapshot_month)
     """)
     params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
     with get_engine().connect() as conn:
@@ -175,11 +179,13 @@ def get_model_metadata(city: str, listing_type: str, snapshot_month: str) -> pd.
 def get_model_feature_stats(city: str, listing_type: str, snapshot_month: str) -> pd.DataFrame:
     """
     Fetch feature means/prevalences for marginalization of unspecified inputs.
+    snapshot_month parameter works for both snapshot_date and snapshot_month columns.
     Returns: id, snapshot_month, listing_type, city, variable_name, feature_mean
     """
     sql = text("""
         SELECT * FROM model_feature_stats
-        WHERE city = :city AND listing_type = :listing_type AND snapshot_month = :snapshot_month
+        WHERE city = :city AND listing_type = :listing_type
+          AND (snapshot_date = :snapshot_month OR snapshot_month = :snapshot_month)
     """)
     params = {"city": city, "listing_type": listing_type, "snapshot_month": snapshot_month}
     with get_engine().connect() as conn:
