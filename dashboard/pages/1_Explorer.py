@@ -74,7 +74,7 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Median price",        fmt_price(df["median_price"].median()))
 col2.metric(f"Median {symbol}/m²", fmt_price(df["median_price_per_m2"].median()))
 col3.metric("Cities covered",      df["city"].nunique())
-col4.metric("Data freshness",      snapshot_label)
+col4.metric("Last updated",      snapshot_label)
 
 st.divider()
 
