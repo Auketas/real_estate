@@ -40,10 +40,8 @@ REGIONS = {
                     lat=37.13, lon=-8.25, zoom=8),
 }
 
-# Color scales: buy uses custom palette, rent uses perceptually uniform scale for better visibility
-# across the wider price range (€17.5–€490/m² vs €3,000–€11,000/m²)
-COLOR_SCALE_BUY = ["#ffffcc", "#800000"]  # Pale yellow → dark maroon for maximum contrast
-COLOR_SCALE_RENT = "YlOrRd"  # Yellow-Orange-Red: perceptually uniform, shows variation better
+# Color scale: unified for both buy and rent for consistent visual language
+COLOR_SCALE = ["#ffffcc", "#800000"]  # Pale yellow → dark maroon for maximum contrast
 
 
 def weighted_avg(group, val_col):
@@ -83,7 +81,7 @@ if is_algarve:
     fig = px.choropleth_mapbox(
         df_city, geojson=geojson,
         locations="city_label", featureidkey="properties.NAME_2",
-        color="ppm2_display",
+        color="price_display",
         color_continuous_scale=COLOR_SCALE,
         mapbox_style="carto-positron",
         zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
@@ -100,7 +98,7 @@ if is_algarve:
         },
     )
     fig.update_layout(
-        coloraxis_colorbar=dict(title=f"{symbol}/m²"),
+        coloraxis_colorbar=dict(title=symbol),
         margin=dict(l=0, r=0, t=0, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -172,11 +170,13 @@ else:
     df_choro["ppm2_rounded"] = df_choro["ppm2_display"].round(0)
     df_choro["price_rounded"] = df_choro["price_display"].round(0)
 
-    # Choose color scale and column based on listing type
-    # Rent: use raw price (more intuitive for renters) with yellow-orange-red scale
-    # Buy: use price per m² (better for comparing quality) with custom scale
-    color_scale = COLOR_SCALE_RENT if type_key == "rent" else COLOR_SCALE_BUY
-    color_column = "price_display" if type_key == "rent" else "ppm2_display"
+    # Filter out sparse neighbourhoods (< 5 listings) to prevent outliers from dragging color scale
+    df_choro = df_choro[df_choro["listing_count"] >= 5].copy()
+
+    # Choose color column based on listing type
+    # Rent: use raw price (more intuitive for renters)
+    # Buy: use raw price (directly answers "what does this cost?")
+    color_column = "price_display" if type_key == "rent" else "price_display"
 
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
@@ -199,10 +199,9 @@ else:
             "avg_time_on_market":     "Avg. days on market",
         },
     )
-    # Update color bar title based on what's being displayed
-    colorbar_title = f"{symbol}" if type_key == "rent" else f"{symbol}/m²"
+    # Color bar shows raw price for both buy and rent
     fig.update_layout(
-        coloraxis_colorbar=dict(title=colorbar_title),
+        coloraxis_colorbar=dict(title=symbol),
         margin=dict(l=0, r=0, t=0, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -309,22 +308,7 @@ else:
                     )
 
                 with range_col:
-                    # Estimated range
                     st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
-
-                    # Confidence indicator: narrow → green, medium → yellow, wide → red
-                    # Based on range as % of central estimate
-                    range_width = ci_upper - ci_lower
-                    range_pct = (range_width / predicted_price * 100) if predicted_price > 0 else 100
-
-                    if range_pct < 25:
-                        confidence_color = "🟢 High confidence"
-                    elif range_pct < 40:
-                        confidence_color = "🟡 Medium confidence"
-                    else:
-                        confidence_color = "🔴 Low confidence (add details)"
-
-                    st.caption(f"Confidence: {confidence_color} (50% range: ±{range_pct:.0f}%)")
 
                 # Helper text
                 if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
