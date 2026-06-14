@@ -27,11 +27,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgeos-dev libproj-dev libgdal-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgeos-dev libproj-dev libgdal-dev libudunits2-dev
 
       - name: Install dependencies
         run: |
-          Rscript -e 'install.packages(c("RPostgres","httr","rvest","assertthat","jsonlite","stringr","dplyr","tidygeocoder","DBI","RSQLite","httr2","sf"), repos="https://cloud.r-project.org")'
+          Rscript -e 'install.packages(c("RPostgres","httr","rvest","assertthat","jsonlite","stringr","dplyr","tidygeocoder","DBI","RSQLite","httr2","sf"), repos="https://cloud.r-project.org")' || exit 1
+          Rscript -e 'if (!require("sf")) { stop("sf package installation failed") }'
 
       - name: Run R script
         run: |
