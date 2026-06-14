@@ -89,11 +89,12 @@ Four stat cards in a horizontal row:
 Cards use terracotta accent for the metric value, secondary grey for the label.
 
 **Section 2: Portugal overview map**
-- Choropleth map coloured by median price per m² at city/region level
+- Choropleth map coloured by median raw price at city/region level
 - Colour scale: cream → terracotta
 - On hover: show city name, median price, median price per m², avg time on market, listing count
 - This is the hero visual of the page — give it generous vertical space
 - Use Plotly with a clean base map (no satellite, light grey geography)
+- **TODO (Phase 10):** Redesign hover to clarify what metrics matter at city level vs neighbourhood level
 
 **Section 3: City comparison summary table**
 A clean, well-formatted table with one row per city. Columns:
@@ -108,10 +109,7 @@ A clean, well-formatted table with one row per city. Columns:
 
 City names should be properly capitalised (Lisboa not lisboa). Climate columns sourced from static data, not scraped. Include a small caption explaining this.
 
-**Section 4: Market pulse (auto-generated text)**
-Two or three plain-language sentences generated from the data. Example: "Lisbon has 8,968 active listings with a median asking price of €645,000. Prices across covered cities have held broadly flat over the past month. The Algarve continues to show the longest average time on market at X days." Template-driven, updated whenever data refreshes.
-
-**Section 5: What's inside (paid features preview)**
+**Section 4: What's inside (paid features preview)**
 A heading "Go deeper with a subscription" followed by a short demo video (20–30 seconds, silent, auto-loop) showcasing the paid features in action:
 - Choropleth map showing neighbourhood price per m² with user clicking into a neighbourhood
 - Charts and metrics updating dynamically
@@ -123,7 +121,7 @@ This section should feel like a natural part of the page, not an intrusive upsel
 
 **Note:** Video production deferred to Phase 10 — will record and edit after page design is finalized and stable.
 
-**Section 6: Feedback nudge**
+**Section 5: Feedback nudge**
 A single subtle line near the bottom of the page, below the preview section. Suggested copy: "Have a specific market or feature in mind? We're actively expanding — [let us know](link to Contact page)." Style as secondary text, small font, not a banner or alert box. The goal is to invite input without signalling incompleteness.
 
 ---
@@ -137,11 +135,13 @@ City-level analysis with neighbourhood granularity.
 - Buy / Rent toggle — **Rent is only available for Lisboa and Porto.** Algarve is buy-only; the rental market there is too thin on these portals to produce meaningful data. Hide the rent toggle when an Algarve city is selected and show a one-line note: "Rental data is not available for the Algarve — the long-term rental market in this region is listed primarily on other platforms."
 
 **Section 1: Neighbourhood choropleth map**
-- Coloured by median price per m² at neighbourhood level
+- Coloured by median raw price at neighbourhood level (both buy and rent)
 - Same cream → terracotta colour scale as country map for consistency
-- On hover: neighbourhood name, median price per m², avg time on market, monthly price change (%), most common property type
+- Sparse neighbourhoods (< 5 listings) excluded from map to prevent outliers dragging colour scale
+- On hover: neighbourhood name, median price, avg time on market, monthly price change (%), most common property type
 - Do NOT show individual listing dots — aggregate only
 - Use Plotly with GeoJSON neighbourhood boundaries
+- **TODO (Phase 10):** Redesign hover tooltip to decide what metrics to show for neighbourhood-level decision making
 
 **Section 2: Price calculator**
 The flagship paid feature.
@@ -597,11 +597,56 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ---
 
-### Phase 7 — Visual sprint
+### Phase 8 — Price calculators (DO FIRST)
 
-*Apply the new design language. See Visual Design Language section for colours, typography and chart style.*
+- [ ] Build buy price calculator (Page 2: Neighbourhood Deep-Dive):
+  - [ ] Inputs: neighbourhood, tipologia, area slider, jardim/garagem/terraco/varanda toggles, novo toggle — **all optional**
+  - [ ] Unspecified features are marginalized out using `model_feature_stats` prevalences
+  - [ ] Output: predicted price with 50% confidence interval
+  - [ ] Confidence band width shows uncertainty visually; range widens/narrows with features specified
+  - [ ] Helper text: "Add more details to narrow the estimate"
+  - [ ] Show listing count that informed the estimate
+- [x] **Rental yield calculator (Investment View, Page 3):**
+  - [x] Restricted to rental-available cities (Lisboa, Porto, Setúbal, Cascais, Sintra, Maia, Gaia, Almada, Costa da Caparica, Caparica)
+  - [x] Same optional inputs as buy calculator
+  - [x] Output: estimated buy price | estimated monthly rent | gross yield %
+  - [x] Caveat: "Gross yield only. Net yield will be lower after taxes, vacancy, maintenance."
+  - [ ] **TODO**: Historical yield trend chart
 
-#### 7a — Theme and global styles ✓ COMPLETE
+---
+
+### Phase 9 — Neighbourhood detail pages (DO SECOND)
+
+*Make neighbourhoods clickable to create a dedicated view with more granular analysis.*
+*Also redesign hover tooltips on all choropleth maps to clarify what metrics matter at different aggregation levels.*
+
+**DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout (photo positioning, text length), which metrics to lead with, chart order, mobile responsiveness. Also decide on hover tooltip content redesign: what should be shown at city level vs neighbourhood level?
+
+#### Implementation
+- [ ] Neighbourhood metadata storage:
+  - [ ] JSON config file: `dashboard/static/neighbourhoods.json`
+  - [ ] Images stored locally in `dashboard/static/neighbourhood_images/` — version controlled, no external dependencies
+  - [ ] Load config once at app startup with `@st.cache_resource`
+  - [ ] Fallback: show data-only view if metadata missing (graceful degradation)
+- [ ] Neighbourhood detail page logic:
+  - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
+  - [ ] Single template renders all neighbourhoods — no per-neighbourhood page files needed
+  - [ ] Neighbourhood-specific metrics and historical trend
+  - [ ] Filter all graphs by `neighbourhood = selected` only
+- [ ] Make neighbourhoods clickable in existing choropleth/bar charts
+- [ ] **Hover tooltip redesign** (coordinate with neighbourhood pages build):
+  - [ ] City-level maps: clarify what metrics matter for city comparison
+  - [ ] Neighbourhood-level maps: clarify what metrics matter for neighbourhood selection
+  - [ ] Consistent visual language across all maps
+
+---
+
+### Phase 10 — Visual polish (DO THIRD)
+
+*Apply final design language details. See Visual Design Language section for colours, typography and chart style.*
+*Note: Market pulse section REMOVED — decided not to do auto-generated text summaries.*
+
+#### 10a — Theme and global styles ✓ COMPLETE
 - [x] Add `.streamlit/config.toml` with base background (`#FAF7F2`), sidebar background (`#F0EBE3`), and primary accent (`#C4603A`)
 - [x] Add global custom CSS in `app.py`: removed Expat Tools references, updated landing page copy
 - [x] Define shared Plotly chart template in `utils/charts.py`: terracotta primary colour, minimal grey gridlines, no chart borders
@@ -611,128 +656,46 @@ Work through these phases sequentially. Complete and verify each phase before st
 - [x] Add currency toggle to sidebar via `utils/sidebar.py` — reads ECB rates, returns `(rate, symbol, fmt_price)` used by all pages to convert every price amount displayed
 - [x] All four pages updated: import charts template, call `render_currency_selector()`, multiply price columns by rate before charting, use symbol in axis labels and table headers
 
-#### 7c — Explorer page (Page 1, free) ✓ COMPLETE
+#### 10b — Structural changes ✓ COMPLETE
+- [x] Remove `5_Expat_Tools.py` — currency toggle now in sidebar
+- [x] Add currency toggle to sidebar via `utils/sidebar.py` — reads ECB rates, returns `(rate, symbol, fmt_price)` used by all pages
+- [x] All four pages updated: import charts template, call `render_currency_selector()`, multiply price columns by rate before charting
 
-- [x] Hero metrics row: active listings, median price/m², cities covered, data freshness ("Updated [Month Year]")
-  - [x] Fix date format truncation: use abbreviated month ("Jun 2026" not "June 2026")
-- [x] Portugal overview map: `scatter_mapbox` with city centroids coloured by median price/m² (cream → terracotta), sized by √listing_count, hover shows city stats. `carto-positron` base map, centred on Portugal.
-- [x] City comparison table: all cities with climate columns (sunshine hrs/yr, avg summer °C, avg winter °C) sourced from static IPMA/Wikipedia dict in the page. Caption explains source.
-  - [x] Remove city-level listing breakdown (headline number shown at top, no need to repeat per-city)
-  - [x] Add Maia and Almada with proper coordinates and climate data
-- [x] Price per m² and time-on-market bar charts (absorbed from City Comparison page)
+#### 10c — Explorer page (Page 1, free) ✓ COMPLETE
+- [x] Hero metrics row: active listings, median price/m², cities covered, data freshness
+- [x] Portugal overview map: city centroids coloured by median raw price (cream → terracotta)
+- [x] City comparison table: all cities with climate columns (sunshine hrs/yr, avg summer/winter temp)
+- [x] Price per m² and time-on-market bar charts
 - [x] `1_Market_Overview.py` and `2_City_Comparison.py` removed; replaced by `1_Explorer.py`
-- [ ] **What's inside** (paid features preview): Deferred to Phase 10 (after price calculators & neighbourhood pages built). Build with real working screenshots/demo video so preview accurately reflects final product.
-- [ ] **Market pulse** (deferred): Optional auto-generated summary text. Low priority — skip for now.
+- [ ] **What's inside** (paid features preview): Build with real working screenshots/demo video (after Phase 8 & 9 complete)
 
-#### 7d — Neighbourhood Deep-Dive page (Page 2, paid) — IN PROGRESS
+#### 10d — Neighbourhood Deep-Dive page (Page 2, paid) — IN PROGRESS
+- [x] Region & type selector
+- [x] Interactive choropleth map — Neighbourhood-level price visualization (raw price, both buy and rent)
+- [x] Sparse neighbourhoods filtered (< 5 listings) to prevent outlier scale dragging
+- [x] Price calculator working
+- [x] GeoJSON files and neighbourhood aggregation
+- [x] Algarve: city-level choropleth + neighbourhood breakdown (buy-only)
 
-**Page structure (reordered for product importance):**
-
-1. **Region & type selector** — Choose region (Porto/Lisboa/Setúbal/Algarve) and buy/rent toggle
-2. **Interactive choropleth map** — Neighbourhood-level price visualization (cream → terracotta by €/m²)
-3. **Price calculator** ✓ NOW PRIMARY FEATURE
-   - Optional inputs: neighbourhood, property type, area, new build, garden, parking, terrace, balcony
-   - Output: estimated price with 95% confidence interval shown as visual band (━━━●━━━)
-   - Band width dynamically widens/narrows based on features specified
-   - Helper text: "Add more details to narrow the estimate"
-4. **Neighbourhood browse** (secondary) — Bar chart showing all neighbourhoods for reference/filtering
-
-**Technical details:**
-- [x] GeoJSON files sourced from GADM 4.1; saved to `dashboard/static/`
-- [x] Choropleth built with `choropleth_mapbox`, cream → terracotta colour scale by median price per m²
-- [x] Hover display: fixed neighbourhood name spacing, removed listing counts
-- [x] Multiple DB neighbourhoods aggregated by listing-count-weighted average
-- [x] Algarve: city-level choropleth + neighbourhood breakdown (no calculator — buy-only, no rental model)
-- [x] Price calculator uses precomputed monthly model coefficients, marginalizes unspecified features
-- [x] Confidence intervals computed from model residual_std_error + feature uncertainty
-- [x] Added Maia to Porto region, Almada/Costa da Caparica/Caparica to Setúbal region
-
-#### 7e — Investment View page (Page 3, paid) ✓ COMPLETE
-- [x] Horizontal bar chart for gross yield: discrete colour bands (< 3% red / 3–5% amber / > 5% green), dashed 5% benchmark line, caption explaining calculation and data scope
-- [x] Price-to-rent ratio table: clean formatted table with buy price, monthly rent, yield, PTR ratio
-- [x] Algarve excluded from yield display — too sparse; messaging updated to "long-term rentals are too rare in this region to reliably analyze"
-- [x] Maia and Almada added to yield analysis (YIELD_CITIES set)
-- [x] Renamed from `4_Rental_Yield.py` to `4_Investment_View.py` (final renumber to `3_` deferred to Phase 7c when City Comparison is absorbed into Explorer)
+#### 10e — Investment View page (Page 3, paid) ✓ COMPLETE
+- [x] Gross yield by city with colour bands
+- [x] Price-to-rent ratio table
+- [x] Algarve excluded from yield display with messaging
+- [x] Rental yield calculator working
 
 ---
 
-### Phase 10 — Neighbourhood detail pages
-
-*Make neighbourhoods clickable to create a dedicated view with more granular analysis.*
-
-**DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout (photo positioning, text length), which metrics to lead with, chart order, mobile responsiveness.
-
-#### Implementation
-- [ ] Neighbourhood metadata storage:
-  - [ ] JSON config file: `dashboard/static/neighbourhoods.json`
-    ```json
-    {
-      "neighbourhoods": {
-        "baixa_lisboa": {
-          "display_name": "Baixa",
-          "city": "lisboa",
-          "intro_text": "Lisbon's historic heart...",
-          "image_path": "neighbourhood_images/baixa.jpg"
-        }
-      }
-    }
-    ```
-  - [ ] Images stored locally in `dashboard/static/neighbourhood_images/` — version controlled, no external dependencies
-  - [ ] Load config once at app startup with `@st.cache_resource`
-  - [ ] Fallback: show data-only view if metadata missing (graceful degradation)
-- [ ] Neighbourhood detail page logic:
-  - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
-  - [ ] Single template renders all neighbourhoods — no per-neighbourhood page files needed
-  - [ ] Render metadata (intro text + photo) from JSON config
-  - [ ] Neighbourhood-specific metrics: median price, price per m², time on market, active listings, most common property type
-  - [ ] Listing breakdown: property type distribution, bedroom mix, feature prevalence (parking, garden, etc.)
-  - [ ] Historical trend: median price over available monthly history (allows price_change_pct comparison to city)
-  - [ ] Filter all graphs by `neighbourhood = selected` only
-- [ ] Make neighbourhoods clickable in existing choropleth/bar charts:
-  - [ ] Plotly `clickData` event triggers `st.query_params` update
-  - [ ] Alternative: custom buttons below chart ("View details")
-- [ ] DB query: `get_neighbourhood_detail()` returns full historical time series for a single neighbourhood from `neighbourhood_monthly_summary` with buy/rent toggle
-- [ ] Styling: inherit page design language (terracotta, same chart template)
-- [ ] Demo video for Explorer landing page:
-  - [ ] Screen record: choropleth map interaction, clicking into a neighbourhood, calculator inputs/outputs (20–30 seconds total)
-  - [ ] Edit for pace and clarity (silent, no audio)
-  - [ ] Upload to Streamlit (embedded via video URL or local asset)
-  - [ ] Integrate into "What's inside" section on Explorer page
-
----
-
-### Phase 8 — Price calculators
-
-- [ ] Build buy price calculator (Page 2):
-  - [ ] Inputs: neighbourhood, tipologia, area slider, jardim/garagem/terraco/varanda toggles, novo toggle — **all optional**
-  - [ ] Unspecified features are marginalized out using `model_feature_stats` prevalences: expected price contribution = `β × mean`; variance contribution = `β² × p × (1−p)` per unspecified binary feature. More inputs specified → narrower interval.
-  - [ ] Output: predicted price (exponentiate — model trained on log price), confidence interval; show interval widening visually as features are left blank
-  - [ ] Short label: "Add more details to narrow the estimate"
-  - [ ] Monthly trend: time series of predicted price for the same inputs across stored monthly coefficients
-  - [ ] Show listing count that informed the estimate
-  - [ ] Show % change vs prior month and vs 6 months ago
-✓ **Rental yield calculator (Investment View, Page 3):**
-  - [x] Restricted to rental-available cities (Lisboa, Porto, Setúbal, Cascais, Sintra, Maia, Gaia, Almada, Costa da Caparica, Caparica)
-  - [x] Same optional inputs as buy calculator
-  - [x] Output: estimated buy price | estimated monthly rent | gross yield %
-  - [x] Caveat: "Gross yield only. Net yield will be lower after taxes, vacancy, maintenance."
-  - [ ] **TODO**: Historical yield trend chart
-
----
-
-### Phase 9 — Paywall, contact and launch prep
+### Phase 11 — Paywall, contact and launch prep
 
 - [ ] **Add "What's inside" preview section** to Explorer page with demo video and Subscribe button
-  - 20–30 second silent demo video showing choropleth map interaction, neighbourhood detail, and calculator
-  - Brief descriptive text below video ("Explore neighbourhood-level analysis, historical trends, and interactive calculators...")
+  - 20–30 second silent demo video showing choropleth map interaction, neighbourhood detail, calculator
+  - Brief descriptive text ("Explore neighbourhood-level analysis, historical trends, and interactive calculators...")
   - Prominent "Subscribe" button linking to LemonSqueezy
-  - Informative tone, not salesy
-  - **Note:** Video production (screen recording + editing) deferred to Phase 10 — implement page layout and CTA now, add video after design is finalized
-- [ ] Add feedback nudge line at bottom of Explorer page ("Have a specific market or feature in mind? [Let us know](link)")
-- [ ] Wire LemonSqueezy paywall gate on Pages 2 and 3 (soft gate — blur/placeholder with subscribe prompt)
+- [ ] Add feedback nudge line at bottom of Explorer page
+- [ ] Wire LemonSqueezy paywall gates on Pages 2 and 3 (soft gate — blur/placeholder with subscribe prompt)
 - [ ] Build Contact page with Formspree form (name, email, subject dropdown, message)
-- [ ] Work through pre-launch checks below
 - [ ] Set up custom domain
+- [ ] Work through pre-launch checklist
 
 ---
 
@@ -820,30 +783,36 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ### Implementation Roadmap (Remaining)
 
-**Complete in this order** (Phase 8 → 10 → 7 finish → 9):
+**Execution order (strictly sequential):**
 
-1. **Phase 8 (Price calculators) — Build first:**
-   - [ ] Buy price calculator (Page 2: Neighbourhood Deep-Dive)
-   - [ ] Rental yield calculator (Page 3: Investment View)
+1. **Phase 8 (Price calculators) — Build buy price calculator:**
+   - [ ] Inputs: neighbourhood, tipologia, area slider, feature toggles (all optional)
+   - [ ] Output: predicted price with 50% confidence interval (range shown, no label)
+   - [ ] Visual band widens/narrows with features specified
+   - [ ] Helper text: "Add more details to narrow the estimate"
+   - [ ] Show listing count that informed the estimate
    
-2. **Phase 10 (Neighbourhood detail pages) — Build:**
-   - [ ] Dynamic neighbourhood detail pages with price history, property breakdown, metrics
-   - [ ] Make neighbourhoods clickable in existing choro/bar charts
-   - [ ] Screen record demo video
+2. **Phase 9 (Neighbourhood detail pages) — Build with hover redesign:**
+   - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
+   - [ ] Neighbourhood detail page template with historical metrics and trends
+   - [ ] Make neighbourhoods clickable in existing choropleth maps
+   - [ ] **Hover tooltip redesign** (coordinate with team): what metrics for city vs neighbourhood level?
+   - [ ] Screen record demo video (20–30 seconds, silent)
 
-3. **Phase 7 finish (Visual sprint) — Polish after features complete:**
-   - [ ] Market pulse: optional auto-generated summary (low priority — skip if time-constrained)
-   - [ ] What's inside preview: build with real working screenshots + demo video of actual features
+3. **Phase 10 (Visual polish) — Final touches (Market pulse REMOVED):**
+   - [ ] What's inside preview: build with real working screenshots + demo video from Phase 9
 
-4. **Phase 9 (Paywall & launch) — Last:**
+4. **Phase 11 (Paywall & launch) — Final:**
    - [ ] Wire paywall soft gates on Pages 2 & 3
    - [ ] Build Contact page
-   - [ ] Set up LemonSqueezy flow
+   - [ ] Set up custom domain
 
-### Next Steps (Immediate)
-1. Run monthly aggregation to capture Setúbal baseline and re-aggregate with corrected Almada
-2. Monitor first Setúbal scraper runs to verify listing volumes and neighbourhood quality
-3. **Then: Start Phase 7 finish work** (market pulse + what's inside)
+### Recent Fixes & Updates (June 14, 2026)
+- Fixed Algarve choropleth error: `COLOR_SCALE` undefined
+- Unified colour scheme: both buy and rent use cream → terracotta
+- Changed buy choropleth to use raw price (not price per m²)
+- Filter sparse neighbourhoods (< 5 listings) from choropleth to fix Lisbon rent scale issue
+- Removed redundant confidence label from price estimator (range already shows uncertainty)
 
 ---
 
