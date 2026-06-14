@@ -14,7 +14,25 @@ This document defines the agreed design direction, page structure, visual langua
 
 ## 🔴 Known Issues — START HERE FOR NEXT SESSION
 
-None currently identified. See "Recent Changes & Current Status" for June 12-13 improvements.
+### **PRIORITY 1: Algarve neighbourhood aggregation filtering out valid data**
+
+**The issue:**
+- Raw data (`ads_buy`) contains 8–10 neighbourhoods per Algarve city (e.g., Loulé, Bairro dos Pescadores for Albufeira)
+- Aggregated data (`neighbourhood_latest_summary`) shows only 1 row per city (city-level fallback)
+- The aggregation script (`code/aggregate/daily_aggregation.R`) has a 10-listing minimum threshold for neighbourhoods; since Algarve neighbourhoods have < 10 listings each, they all get filtered out and replaced with a single city-level row
+
+**Why it matters:**
+- Without neighbourhood breakdown, Algarve page is just a static map with no interactivity
+- Neighbourhood bar chart (currently showing 1 bar per city) is the only deeper feature for Algarve users
+
+**What to do:**
+1. Open `code/aggregate/daily_aggregation.R`
+2. Find the neighbourhood filtering logic (10-listing threshold)
+3. Lower threshold for Algarve cities to 3–5 listings (or keep 10 for other regions)
+4. Re-run daily aggregation to repopulate `neighbourhood_latest_summary` for Algarve
+5. Add transparency note on Algarve page: "Neighbourhood data is limited for the Algarve region"
+
+**Effort:** Low (threshold change + script re-run). Do this first when resuming.
 
 ---
 
