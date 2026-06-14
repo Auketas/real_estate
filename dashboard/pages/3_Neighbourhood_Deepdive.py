@@ -177,13 +177,21 @@ else:
     color_scale = COLOR_SCALE
     color_column = "price_display"
 
+    # For rent view on Lisboa: zoom in to city center only (Cascais/Sintra/Almada have sparse rental data)
+    if region == "Lisboa" and type_key == "rent":
+        map_zoom = 11
+        map_center = {"lat": 38.7223, "lon": -9.1393}  # Lisbon city center
+    else:
+        map_zoom = cfg["zoom"]
+        map_center = {"lat": cfg["lat"], "lon": cfg["lon"]}
+
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
         color=color_column,
         color_continuous_scale=color_scale,
         mapbox_style="carto-positron",
-        zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
+        zoom=map_zoom, center=map_center,
         opacity=0.75,
         hover_data={
             "feature_name_display":   True,
@@ -309,9 +317,12 @@ else:
                 with range_col:
                     st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
 
-                # Helper text
-                if any(v is None for k, v in inputs.items() if k not in ["neighbourhood", "tipologia"]):
-                    st.caption("💡 Add more details to narrow the estimate")
+                # Helper text explaining uncertainty
+                st.caption(
+                    "**About this estimate:** The range shown reflects 50% confidence — we're 50% confident the actual price falls within it. "
+                    "Wider ranges mean more uncertainty; narrower ranges mean more confidence. "
+                    "Add more details (property type, size, features) to narrow the estimate."
+                )
 
                 st.write("")
 
