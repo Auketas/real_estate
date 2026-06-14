@@ -173,10 +173,9 @@ else:
     # Filter out sparse neighbourhoods (< 5 listings) to prevent outliers from dragging color scale
     df_choro = df_choro[df_choro["listing_count"] >= 5].copy()
 
-    # Choose color column based on listing type
-    # Rent: use raw price (more intuitive for renters)
-    # Buy: use raw price (directly answers "what does this cost?")
-    color_column = "price_display" if type_key == "rent" else "price_display"
+    # Use unified color scale for both buy and rent
+    color_scale = COLOR_SCALE
+    color_column = "price_display"
 
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
