@@ -635,27 +635,58 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 ### Phase 9 — Neighbourhood detail pages (DO SECOND)
 
-*Make neighbourhoods clickable to create a dedicated view with more granular analysis.*
-*Also redesign hover tooltips on all choropleth maps to clarify what metrics matter at different aggregation levels.*
+*Make neighbourhoods clickable to create a dedicated view with granular price data plus contextual liveability metrics.*
+*Combine market analysis with neighbourhood quality-of-life indicators to help users make informed relocation decisions.*
 
-**DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout (photo positioning, text length), which metrics to lead with, chart order, mobile responsiveness. Also decide on hover tooltip content redesign: what should be shown at city level vs neighbourhood level?
+**DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout, metric hierarchy, chart order, mobile responsiveness.
+
+**⚠️ SAFETY DATA PLANNING:** Safety is critical for expat relocation decisions but requires careful sourcing. **When starting Phase 9 implementation, schedule a dedicated brainstorm on safety data strategy** — how to source it reliably (Numbeo, crowdsourcing, official data, proxy metrics), how to present it responsibly, and how to build in-house data over time. Do NOT implement safety lightly or with unreliable sources.
+
+#### Neighbourhood detail page content
+
+**Core price & market data (already have):**
+- Median price, price/m², time on market, active listings
+- Price by property type (T0–T5+)
+- Price trends over available monthly snapshots
+- Price estimator (pre-filled with neighbourhood)
+- Market velocity: month-over-month price changes
+
+**Contextual liveability data (NEW — adds differentiation):**
+- **Walk Score** — walkability + public transport access (official Walk Score API)
+- **Amenity counts** — schools, grocery stores, restaurants, parks within 1–2km (from OpenStreetMap)
+- **Travel times** — minutes to nearest train station and airport (calculated from fixed points)
+- **Vibrancy Index** — count of bars, nightlife venues, and tourist attractions (from OSM); indicates noise/activity level (low = quiet residential, high = lively/touristy)
+- **Safety indicator** — TBD; initial source Numbeo if available, flagged as user-reported; plan crowdsourced rating system for future
 
 #### Implementation
-- [ ] Neighbourhood metadata storage:
-  - [ ] JSON config file: `dashboard/static/neighbourhoods.json`
-  - [ ] Images stored locally in `dashboard/static/neighbourhood_images/` — version controlled, no external dependencies
-  - [ ] Load config once at app startup with `@st.cache_resource`
-  - [ ] Fallback: show data-only view if metadata missing (graceful degradation)
+
 - [ ] Neighbourhood detail page logic:
   - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
   - [ ] Single template renders all neighbourhoods — no per-neighbourhood page files needed
-  - [ ] Neighbourhood-specific metrics and historical trend
-  - [ ] Filter all graphs by `neighbourhood = selected` only
-- [ ] Make neighbourhoods clickable in existing choropleth/bar charts
-- [ ] **Hover tooltip redesign** (coordinate with neighbourhood pages build):
+  - [ ] Fetch price data from `neighbourhood_latest_summary` and monthly archive
+  - [ ] Fetch liveability metrics (Walk Score, amenity counts, travel times, vibrancy)
+  
+- [ ] Liveability metrics implementation:
+  - [ ] Walk Score API integration (cache results; scores rarely change)
+  - [ ] OSM amenity queries: schools, grocery stores, restaurants, parks
+  - [ ] Travel time calculation: pre-compute distances to train station and airport per neighbourhood
+  - [ ] Vibrancy Index: count bars + tourist attractions from OSM
+  - [ ] Safety data source: research Numbeo for Portugal neighbourhood coverage; **plan full brainstorm before committing to approach**
+  
+- [ ] Price data visualization:
+  - [ ] Price by property type (bar or table)
+  - [ ] Price trend (line chart if 3+ months available)
+  - [ ] Price estimator widget (pre-filled with neighbourhood)
+  
+- [ ] Make neighbourhoods clickable:
+  - [ ] Add click handlers to Neighbourhood Deep-Dive choropleth and bar charts
+  - [ ] Navigate to detail page with query params
+  
+- [ ] Hover tooltip redesign (optional, can defer):
   - [ ] City-level maps: clarify what metrics matter for city comparison
   - [ ] Neighbourhood-level maps: clarify what metrics matter for neighbourhood selection
-  - [ ] Consistent visual language across all maps
+
+---
 
 ---
 
