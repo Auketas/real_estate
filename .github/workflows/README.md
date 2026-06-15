@@ -108,6 +108,24 @@ This file describes what each workflow does and when it runs. All workflows use 
 - **Expected result:** Significantly improves neighbourhood mapping rate (typically 30%+ → 90%+)
 - **Notes:** Unmatched listings are those whose coordinates fall outside all GeoJSON polygons (e.g., invalid coordinates, ocean locations)
 
+### 19. **Backfill Algarve OSM Neighbourhoods** (`backfill_algarve_osm_neighbourhoods.yml`)
+- **What:** Updates Algarve listings (albufeira, faro, lagoa, lagos, loule, portimao) by looking up neighbourhoods via OSM reverse geocoding
+- **When:** Manual trigger only (workflow_dispatch) — one-time backfill operation
+- **Why Separate:** Algarve GeoJSON only contains city-level boundaries (too large for neighbourhood detail); OSM provides actual neighbourhood-level data
+- **Process:**
+  1. Loads all Algarve listings from `ads_buy` and `ads_rent` with valid coordinates
+  2. For each listing, reverse-geocodes coordinates to find the OSM neighbourhood
+  3. Updates the database with new neighbourhoods
+  4. Outputs diagnostics: success rate, per-city breakdown, examples of changes
+- **Output:** Console report showing:
+  - Total listings processed
+  - % with neighbourhood found vs not found
+  - Breakdown by city
+  - Examples of successful neighbourhood assignments
+  - Database updates applied
+- **Expected result:** Algarve listings will have real neighbourhood names (e.g., "Bairro dos Pescadores") instead of just city names
+- **Notes:** Scrapers now use this same OSM approach for Algarve cities automatically; this backfill brings existing data in line with new approach
+
 ---
 
 ## Neighbourhood Mapping (One-off / Diagnostic)

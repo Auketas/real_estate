@@ -356,7 +356,7 @@ scrape_listings <- function(base_url){
   return(result)
 }
 
-scrape_ad <- function(url){
+scrape_ad <- function(url, cityname = NA){
   page <- fetch_with_retry(url)
   features <- page %>%
     html_elements("div.css-1okys8k.e178zspo0") %>%
@@ -392,10 +392,9 @@ scrape_ad <- function(url){
   lon <- data$props$pageProps$ad$location$coordinates$longitude
   
   id <- data$props$pageProps$id
-  
-  neighbourhood <- convert_coordinates_to_neighbourhood(lon,lat)
-  
-  
+
+  neighbourhood <- convert_coordinates_to_neighbourhood(lon, lat, cityname)
+
   return(c(id,area,tipologia,andar,anunciante,tipo,novo,jardim,energia,elevador,garagem,terraco,varanda,lat,lon,neighbourhood))
 }
 
@@ -524,10 +523,10 @@ scrape_new_ads <- function(new_listings,date,cityname,type,maxads=4000){
     Sys.sleep(2)
     
     result <- tryCatch(
-      scrape_ad(new_listings$link[i]),
+      scrape_ad(new_listings$link[i], cityname),
       error = function(e) {
         message(paste("Error at row", i, ":", e$message))
-        return(rep(NA, 16))  
+        return(rep(NA, 16))
       }
     )
     
@@ -558,8 +557,18 @@ update_price_table <- function(id,dbprice,currentprice,today,pricetable){
   return(pricetable)
 }
 
-convert_coordinates_to_neighbourhood <- function(lon, lat) {
-  # Try GeoJSON point-in-polygon matching first
+is_algarve_city <- function(city) {
+  city_norm <- gsub("-", " ", tolower(city))
+  city_norm %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
+}
+
+convert_coordinates_to_neighbourhood <- function(lon, lat, city = NA) {
+  # For Algarve cities, use OSM directly (GeoJSON only has city-level boundaries)
+  if (!is.na(city) && is_algarve_city(city)) {
+    return(get_neighbourhood_from_osm(lon, lat))
+  }
+
+  # For other regions, try GeoJSON point-in-polygon matching first
   if (!is.na(lon) && !is.na(lat) && length(GEOJSON_NEIGHBOURHOODS) > 0) {
     tryCatch({
       for (geojson in GEOJSON_NEIGHBOURHOODS) {
@@ -585,30 +594,42 @@ convert_coordinates_to_neighbourhood <- function(lon, lat) {
   }
 
   # Fall back to OpenStreetMap reverse geocoding
-  df <- data.frame(lon = lon, lat = lat)
-  result <- reverse_geocode(
-    df,
-    lat = lat,
-    long = lon,
-    method = "osm",
-    full_results = TRUE
-  )
+  return(get_neighbourhood_from_osm(lon, lat))
+}
 
-  # Ensure columns exist before coalescing (OSM doesn't always return all fields)
-  expected_cols <- c("neighbourhood", "suburb")
-  for (col in expected_cols) {
-    if (!col %in% names(result)) {
-      result[[col]] <- NA_character_
-    }
+get_neighbourhood_from_osm <- function(lon, lat) {
+  if (is.na(lon) || is.na(lat)) {
+    return(NA_character_)
   }
 
-  neighbourhood <- result %>%
-    transmute(
-      neighbourhood = coalesce(neighbourhood, suburb)
-    ) %>%
-    pull(neighbourhood)
+  tryCatch({
+    df <- data.frame(lon = lon, lat = lat)
+    result <- reverse_geocode(
+      df,
+      lat = lat,
+      long = lon,
+      method = "osm",
+      full_results = TRUE
+    )
 
-  return(neighbourhood)
+    # Ensure columns exist before coalescing (OSM doesn't always return all fields)
+    expected_cols <- c("neighbourhood", "suburb")
+    for (col in expected_cols) {
+      if (!col %in% names(result)) {
+        result[[col]] <- NA_character_
+      }
+    }
+
+    neighbourhood <- result %>%
+      transmute(
+        neighbourhood = coalesce(neighbourhood, suburb)
+      ) %>%
+      pull(neighbourhood)
+
+    return(neighbourhood)
+  }, error = function(e) {
+    return(NA_character_)
+  })
 }
 
 turso_query <- function(sql, url, token) {

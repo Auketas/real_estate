@@ -334,7 +334,7 @@ get_feature_value <- function(feature_texts, label) {
 
 # Scrape one individual property page.
 # Returns a named character vector with 16 fields (same order as imovirtual).
-scrape_ad_sapo <- function(url) {
+scrape_ad_sapo <- function(url, cityname = NA) {
   # Use listing page as referer to look like a natural navigation
   listing_base <- str_extract(url, "https://casa\\.sapo\\.pt/[^/]+/apartamentos/[^/]+/")
   referer <- ifelse(is.na(listing_base), "https://casa.sapo.pt/", listing_base)
@@ -408,8 +408,8 @@ scrape_ad_sapo <- function(url) {
     }, error = function(e) NULL)
   }
 
-  # --- Neighbourhood via OSM reverse geocoding ---
-  neighbourhood <- convert_coordinates_to_neighbourhood_sapo(lon, lat)
+  # --- Neighbourhood via OSM (for Algarve) or GeoJSON (for other regions) ---
+  neighbourhood <- convert_coordinates_to_neighbourhood_sapo(lon, lat, cityname)
 
   c(id, area, tipologia, andar, anunciante, tipo, novo, jardim,
     energia, elevador, garagem, terraco, varanda, lat, lon, neighbourhood)
@@ -417,7 +417,17 @@ scrape_ad_sapo <- function(url) {
 
 # ---- Reverse geocoding ------------------------------------------------------
 
-convert_coordinates_to_neighbourhood_sapo <- function(lon, lat) {
+is_algarve_city <- function(city) {
+  city_norm <- gsub("-", " ", tolower(city))
+  city_norm %in% c("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
+}
+
+convert_coordinates_to_neighbourhood_sapo <- function(lon, lat, city = NA) {
+  # For Algarve cities, use OSM directly (GeoJSON only has city-level boundaries)
+  if (!is.na(city) && is_algarve_city(city)) {
+    return(get_neighbourhood_from_osm_sapo(lon, lat))
+  }
+
   if (is.na(lon) || is.na(lat)) return(NA_character_)
 
   # Try GeoJSON point-in-polygon matching first
@@ -446,15 +456,25 @@ convert_coordinates_to_neighbourhood_sapo <- function(lon, lat) {
   }
 
   # Fall back to OpenStreetMap reverse geocoding
-  df     <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
-  result <- reverse_geocode(df, lat = lat, long = lon,
-                             method = "osm", full_results = TRUE)
-  for (col in c("neighbourhood", "suburb")) {
-    if (!col %in% names(result)) result[[col]] <- NA_character_
-  }
-  result %>%
-    transmute(neighbourhood = coalesce(neighbourhood, suburb)) %>%
-    pull(neighbourhood)
+  return(get_neighbourhood_from_osm_sapo(lon, lat))
+}
+
+get_neighbourhood_from_osm_sapo <- function(lon, lat) {
+  if (is.na(lon) || is.na(lat)) return(NA_character_)
+
+  tryCatch({
+    df     <- data.frame(lon = as.numeric(lon), lat = as.numeric(lat))
+    result <- reverse_geocode(df, lat = lat, long = lon,
+                               method = "osm", full_results = TRUE)
+    for (col in c("neighbourhood", "suburb")) {
+      if (!col %in% names(result)) result[[col]] <- NA_character_
+    }
+    result %>%
+      transmute(neighbourhood = coalesce(neighbourhood, suburb)) %>%
+      pull(neighbourhood)
+  }, error = function(e) {
+    return(NA_character_)
+  })
 }
 
 # ---- Batch new-ads scraper --------------------------------------------------
@@ -468,7 +488,7 @@ scrape_new_ads_sapo <- function(new_listings, date, cityname, type, maxads = 150
     cat("Scraping ad", i, "of", nads, "\n")
     Sys.sleep(runif(1, 10, 15))
     result <- tryCatch(
-      scrape_ad_sapo(new_listings$link[i]),
+      scrape_ad_sapo(new_listings$link[i], cityname),
       error = function(e) {
         message("Error at row ", i, ": ", e$message)
         rep(NA_character_, 16)
@@ -517,7 +537,7 @@ test_sapo_single_page <- function(city = "porto", type = "buy") {
 
   if (!is.null(page_result$results) && nrow(page_result$results) > 0) {
     cat("\n=== Detail page test (first listing) ===\n")
-    detail_raw <- scrape_ad_sapo(page_result$results$link[1])
+    detail_raw <- scrape_ad_sapo(page_result$results$link[1], city)
     detail <- setNames(as.list(detail_raw),
                        c("id", "area", "tipologia", "andar", "anunciante", "tipo",
                          "novo", "jardim", "energia", "elevador", "garagem",
