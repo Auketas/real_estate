@@ -87,6 +87,12 @@ REGION_DEFS = {
     "Algarve": ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao"),
 }
 
+# Create reverse mapping: city -> region
+CITY_TO_REGION = {}
+for region, cities in REGION_DEFS.items():
+    for city in cities:
+        CITY_TO_REGION[city] = region
+
 # Region center coordinates
 REGION_COORDS = {
     "Porto":   (41.157, -8.629),
@@ -152,6 +158,7 @@ st.divider()
 st.subheader("City comparison")
 
 df_table = df.copy()
+df_table["region"]       = df_table["city"].map(CITY_TO_REGION)
 df_table["sunshine"]     = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("sunshine"))
 df_table["summer_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("summer_temp"))
 df_table["winter_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("winter_temp"))
@@ -160,11 +167,11 @@ df_table["winter_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get
 df_table = df_table.sort_values("price_display", ascending=False)
 
 tbl = df_table[[
-    "city_label", "price_display", "ppm2_display",
+    "region", "city_label", "price_display", "ppm2_display",
     "avg_time_on_market_days", "sunshine", "summer_temp", "winter_temp",
 ]].copy()
 tbl.columns = [
-    "City", f"Median price ({symbol})", f"Median {symbol}/m²",
+    "Region", "City", f"Median price ({symbol})", f"Median {symbol}/m²",
     "Avg. days on market", "Sunshine hrs/yr", "Avg summer °C", "Avg winter °C",
 ]
 tbl[f"Median price ({symbol})"] = tbl[f"Median price ({symbol})"].map("{:,.0f}".format)
