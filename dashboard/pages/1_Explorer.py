@@ -78,31 +78,61 @@ col4.metric("Last updated",      snapshot_label)
 
 st.divider()
 
-# ── Portugal overview map ─────────────────────────────────────────────────────
+# ── Portugal overview map (aggregated by region) ──────────────────────────────
 
-df_map = df[df["city"].isin(CITY_COORDS)].copy()
-df_map["lat"]        = df_map["city"].map(lambda c: CITY_COORDS[c][0])
-df_map["lon"]        = df_map["city"].map(lambda c: CITY_COORDS[c][1])
-df_map["size_plot"]  = np.sqrt(df_map["listing_count"].clip(lower=1))
+# Define regions for aggregation
+REGION_DEFS = {
+    "Porto":   ("porto", "vila-nova-de-gaia", "maia"),
+    "Lisboa":  ("lisboa", "cascais", "sintra", "almada", "costa-da-caparica", "caparica-e-trafaria"),
+    "Algarve": ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao"),
+}
+
+# Region center coordinates
+REGION_COORDS = {
+    "Porto":   (41.157, -8.629),
+    "Lisboa":  (38.717, -9.142),
+    "Algarve": (37.13, -8.25),
+}
+
+# Aggregate data by region
+df_regions = []
+for region_name, cities in REGION_DEFS.items():
+    region_data = df[df["city"].isin(cities)]
+    if not region_data.empty:
+        agg = {
+            "region": region_name,
+            "listing_count": region_data["listing_count"].sum(),
+            "median_price": region_data["price_display"].median(),
+            "median_ppm2": region_data["ppm2_display"].median(),
+            "avg_time_on_market": region_data["avg_time_on_market_days"].mean(),
+        }
+        df_regions.append(agg)
+
+df_map = pd.DataFrame(df_regions)
+df_map["lat"]       = df_map["region"].map(lambda r: REGION_COORDS[r][0])
+df_map["lon"]       = df_map["region"].map(lambda r: REGION_COORDS[r][1])
+df_map["size_plot"] = np.sqrt(df_map["listing_count"].clip(lower=1))
 
 fig_map = px.scatter_mapbox(
     df_map,
     lat="lat", lon="lon",
-    color="ppm2_display",
+    color="median_ppm2",
     size="size_plot",
-    size_max=40,
+    size_max=50,
     color_continuous_scale=["#F5E6C8", "#C4603A"],
-    hover_name="city_label",
+    hover_name="region",
     hover_data={
-        "price_display":          True,
-        "ppm2_display":           True,
-        "avg_time_on_market_days":":.0f",
-        "lat": False, "lon": False, "size_plot": False, "listing_count": False,
+        "median_price":           True,
+        "median_ppm2":            True,
+        "avg_time_on_market":     ":.0f",
+        "listing_count":          True,
+        "lat": False, "lon": False, "size_plot": False,
     },
     labels={
-        "price_display":           f"Median price ({symbol})",
-        "ppm2_display":            f"Median {symbol}/m²",
-        "avg_time_on_market_days": "Avg. days on market",
+        "median_price":           f"Median price ({symbol})",
+        "median_ppm2":            f"Median {symbol}/m²",
+        "avg_time_on_market":     "Avg. days on market",
+        "listing_count":          "Active listings",
     },
     mapbox_style="carto-positron",
     zoom=5.8,
@@ -126,6 +156,9 @@ df_table["sunshine"]     = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get
 df_table["summer_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("summer_temp"))
 df_table["winter_temp"]  = df_table["city"].map(lambda c: CLIMATE.get(c, {}).get("winter_temp"))
 
+# Sort by median price before formatting
+df_table = df_table.sort_values("price_display", ascending=False)
+
 tbl = df_table[[
     "city_label", "price_display", "ppm2_display",
     "avg_time_on_market_days", "sunshine", "summer_temp", "winter_temp",
@@ -139,7 +172,7 @@ tbl[f"Median {symbol}/m²"]      = tbl[f"Median {symbol}/m²"].map("{:,.0f}".for
 tbl["Avg. days on market"]      = tbl["Avg. days on market"].map("{:.0f}".format)
 
 st.dataframe(
-    tbl.sort_values(f"Median {symbol}/m²", ascending=False),
+    tbl,
     use_container_width=True, hide_index=True,
 )
 st.caption(
