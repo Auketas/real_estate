@@ -319,9 +319,8 @@ else:
 
                 # Helper text explaining uncertainty
                 st.caption(
-                    "**About this estimate:** The range shown reflects 50% confidence — we're 50% confident the actual price falls within it. "
-                    "Wider ranges mean more uncertainty; narrower ranges mean more confidence. "
-                    "Add more details (property type, size, features) to narrow the estimate."
+                    "**About this estimate:** This is based on recent comparable listings in the neighbourhood. "
+                    "Add more details (property type, size, features) to narrow the range."
                 )
 
                 st.write("")
