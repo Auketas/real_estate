@@ -107,6 +107,138 @@ if is_algarve:
     algarve_city = st.selectbox(
         "Select city", list(ALGARVE_CITIES), format_func=lambda c: CITY_LABELS[c]
     )
+
+    # ── Price Estimator for Algarve ───────────────────────────────────────────
+    st.subheader("Price Estimator")
+    latest_date = get_latest_live_model_date("buy")
+    available_months = get_available_snapshot_months("buy")
+
+    if latest_date is None:
+        st.warning("Live model not yet available. Models train daily after new listings are processed.")
+    else:
+        # Fetch live model data for the selected Algarve city
+        coef = get_model_coefficients(algarve_city, "buy", latest_date)
+        metadata = get_model_metadata(algarve_city, "buy", latest_date)
+        feature_stats = get_model_feature_stats(algarve_city, "buy", latest_date)
+
+        if coef.empty or metadata.empty:
+            st.warning(f"No live model available for {CITY_LABELS[algarve_city]}")
+        else:
+            # Get available options
+            available_neighbourhoods = get_available_neighbourhoods(coef)
+            available_tipologias = get_available_tipologias(coef)
+
+            # Input section
+            st.write("Specify property details (all fields optional):")
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                neighbourhood = st.selectbox(
+                    "Neighbourhood",
+                    [None] + available_neighbourhoods,
+                    format_func=lambda x: "Select neighbourhood" if x is None else x,
+                    key="algarve_calc_neighbourhood"
+                )
+
+            with col2:
+                tipologia = st.selectbox(
+                    "Property type",
+                    [None] + available_tipologias,
+                    format_func=lambda x: "Select type" if x is None else x,
+                    key="algarve_calc_tipologia"
+                )
+
+            with col3:
+                area = st.number_input(
+                    "Area (m²)",
+                    min_value=0,
+                    max_value=500,
+                    value=None,
+                    step=10,
+                    key="algarve_calc_area"
+                )
+
+            # Feature toggles
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                novo = st.checkbox("New build", key="algarve_calc_novo")
+            with col2:
+                jardim = st.checkbox("Garden", key="algarve_calc_jardim")
+            with col3:
+                garagem = st.checkbox("Parking", key="algarve_calc_garagem")
+            with col4:
+                terraco = st.checkbox("Terrace", key="algarve_calc_terraco")
+            with col5:
+                varanda = st.checkbox("Balcony", key="algarve_calc_varanda")
+
+            # Build inputs dict (None for unspecified)
+            inputs = {
+                "neighbourhood": neighbourhood,
+                "tipologia": tipologia,
+                "area": area if area and area > 0 else None,
+                "novo": 1 if novo else None,
+                "jardim": 1 if jardim else None,
+                "garagem": 1 if garagem else None,
+                "terraco": 1 if terraco else None,
+                "varanda": 1 if varanda else None,
+            }
+
+            # Calculate
+            result = predict_price(inputs, coef, feature_stats, metadata)
+
+            if "error" in result:
+                st.error(result["error"])
+            else:
+                # Display result with visual band
+                predicted_price = result["predicted_price"]
+                ci_lower = result["ci_lower"]
+                ci_upper = result["ci_upper"]
+
+                # Main price display
+                st.write("")
+                price_col, range_col = st.columns([1, 2])
+
+                with price_col:
+                    st.metric(
+                        "Estimated price",
+                        fmt_price(predicted_price)
+                    )
+
+                with range_col:
+                    st.write(f"Estimated range: {fmt_price(ci_lower)} – {fmt_price(ci_upper)}")
+
+                # Helper text explaining uncertainty
+                st.caption(
+                    "**About this estimate:** Wider ranges mean more uncertainty; narrower ranges mean more confidence. "
+                    "Add more details (property type, size, features) to narrow the estimate."
+                )
+
+                st.write("")
+
+                # Historical price trend (if monthly snapshots available)
+                if available_months:
+                    with st.expander("📊 Price trend (monthly snapshots)"):
+                        trend_prices = []
+                        for month in available_months[:12]:  # Show last 12 months
+                            coef_hist = get_model_coefficients(algarve_city, "buy", month)
+                            feat_hist = get_model_feature_stats(algarve_city, "buy", month)
+                            meta_hist = get_model_metadata(algarve_city, "buy", month)
+                            if not coef_hist.empty and not feat_hist.empty:
+                                result_hist = predict_price(inputs, coef_hist, feat_hist, meta_hist)
+                                if "predicted_price" in result_hist:
+                                    trend_prices.append({
+                                        "Month": month,
+                                        "Price": result_hist["predicted_price"]
+                                    })
+                        if trend_prices:
+                            df_trend = pd.DataFrame(trend_prices)
+                            st.line_chart(df_trend.set_index("Month")["Price"])
+                            st.caption("How this property's predicted price has changed across monthly snapshots")
+
+    # ── Neighbourhood price distribution ──────────────────────────────────────
+    st.divider()
+    st.subheader("Price distribution by neighbourhood")
     df_nbhd = get_neighbourhood_summary(city=algarve_city, listing_type="buy")
     if df_nbhd.empty:
         st.info("No neighbourhood data available for this city.")
