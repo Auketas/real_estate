@@ -8,6 +8,10 @@ credentials:
       email: auketas@gmail.com
       name: Auke
       password: "$2b$12$5f.Rr9n2l5ABdaks0s33HOYUS8GhZxkk9RY2iAnYMDQw9Tei4Mz/W"
+    jur:
+      email: jurriaantas@msn.com
+      name: Jur
+      password: "$2b$12$zY.btg8O3xbVCIhu9iM1LObPCktc3OEBgXWgq8Omx4LoUT1qZDnNW"
 
 cookie:
   expiry_days: 30
