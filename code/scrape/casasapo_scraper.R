@@ -290,6 +290,7 @@ scrape_listings_sapo <- function(base_url) {
     price       = all_prices,
     stringsAsFactors = FALSE
   )
+  result <- result[!is.na(result$id), ]
   result <- result[!duplicated(result$id), ]
   result <- result[grepl("€", result$price), ]   # keep EUR prices only
 
