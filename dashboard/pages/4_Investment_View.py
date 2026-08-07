@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
 import plotly.express as px
 import utils.charts
 from utils.auth import require_auth
@@ -63,20 +65,71 @@ fig.add_vline(x=5, line_dash="dash", line_color="#6B6B6B",
               annotation_text="5% benchmark", annotation_position="top right")
 st.plotly_chart(fig, use_container_width=True)
 
-# ---- Price-to-rent ratio table
-st.subheader("Price-to-rent ratio by city")
-ptr = merged[["city_label", "price_to_rent", "buy_display",
-              "rent_display", "gross_yield"]].copy()
-ptr.columns = ["City", "Price-to-rent ratio", f"Median buy ({symbol})",
-               f"Median monthly rent ({symbol})", "Gross yield (%)"]
-ptr[f"Median buy ({symbol})"]          = ptr[f"Median buy ({symbol})"].map("{:,.0f}".format)
-ptr[f"Median monthly rent ({symbol})"] = ptr[f"Median monthly rent ({symbol})"].map("{:,.0f}".format)
-ptr["Gross yield (%)"]                 = ptr["Gross yield (%)"].map("{:.1f}%".format)
-ptr["Price-to-rent ratio"]             = ptr["Price-to-rent ratio"].map("{:.1f}".format)
+# ---- City comparison table
+st.subheader("Market metrics by city")
+city_table = merged[["city_label", "buy_display", "rent_display", "gross_yield"]].copy()
+city_table.columns = ["City", f"Median buy ({symbol})", f"Median monthly rent ({symbol})", "Gross yield (%)"]
+city_table[f"Median buy ({symbol})"]          = city_table[f"Median buy ({symbol})"].map("{:,.0f}".format)
+city_table[f"Median monthly rent ({symbol})"] = city_table[f"Median monthly rent ({symbol})"].map("{:,.0f}".format)
+city_table["Gross yield (%)"]                 = city_table["Gross yield (%)"].map("{:.1f}%".format)
 st.dataframe(
-    ptr.sort_values("Gross yield (%)", ascending=False),
+    city_table.sort_values("Gross yield (%)", ascending=False),
     use_container_width=True, hide_index=True,
 )
+
+# ---- Gross yield trend (historical)
+with st.expander("📊 Yield trends (monthly snapshots)"):
+    st.caption("How gross yield has changed over time for each city")
+
+    available_months = get_available_snapshot_months("buy")
+    if available_months and len(available_months) > 1:
+        yield_trends = []
+
+        for city in YIELD_CITIES:
+            city_label = merged[merged["city"] == city]["city_label"].values
+            if len(city_label) == 0:
+                continue
+            city_label = city_label[0]
+
+            for month in available_months[-12:]:  # Last 12 months
+                try:
+                    buy_coef = get_model_coefficients(city, "buy", month)
+                    rent_coef = get_model_coefficients(city, "rent", month)
+
+                    if not buy_coef.empty and not rent_coef.empty:
+                        # Get intercepts and basic prices from coefficients
+                        buy_intercept = buy_coef[buy_coef["variable_name"] == "intercept"]["coefficient"].values
+                        rent_intercept = rent_coef[rent_coef["variable_name"] == "intercept"]["coefficient"].values
+
+                        if len(buy_intercept) > 0 and len(rent_intercept) > 0:
+                            # Base prices from intercepts (log scale)
+                            base_buy = np.exp(buy_intercept[0])
+                            base_rent = np.exp(rent_intercept[0])
+
+                            yield_pct = (base_rent * 12 / base_buy * 100) if base_buy > 0 else 0
+                            if 0 < yield_pct < 20:
+                                yield_trends.append({
+                                    "month_str": str(month),
+                                    "city_label": city_label,
+                                    "yield": yield_pct
+                                })
+                except:
+                    pass
+
+        if yield_trends:
+            df_yields = pd.DataFrame(yield_trends)
+            fig_yield = px.line(
+                df_yields,
+                x="month_str", y="yield",
+                color="city_label",
+                markers=True,
+                labels={"month_str": "Month", "yield": "Gross yield (%)", "city_label": "City"},
+            )
+            fig_yield.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}: %{y:.1f}%<extra></extra>")
+            fig_yield.update_layout(hovermode="x unified")
+            st.plotly_chart(fig_yield, use_container_width=True)
+        else:
+            st.info("Not enough historical data to show yield trends yet")
 
 
 # ---- Rental Yield Calculator ────────────────────────────────────────────────
@@ -216,3 +269,84 @@ else:
             )
 
             st.write("")
+
+            # Historical yield trend (if monthly snapshots available)
+            if available_months:
+                with st.expander("📊 Yield trend (monthly snapshots)"):
+                    trend_data = []
+                    for month in available_months[:12]:  # Show last 12 months
+                        coef_buy_hist = get_model_coefficients(selected_city, "buy", month)
+                        feat_buy_hist = get_model_feature_stats(selected_city, "buy", month)
+                        meta_buy_hist = get_model_metadata(selected_city, "buy", month)
+
+                        coef_rent_hist = get_model_coefficients(selected_city, "rent", month)
+                        feat_rent_hist = get_model_feature_stats(selected_city, "rent", month)
+                        meta_rent_hist = get_model_metadata(selected_city, "rent", month)
+
+                        if not coef_buy_hist.empty and not coef_rent_hist.empty and not feat_buy_hist.empty and not feat_rent_hist.empty:
+                            result_buy_hist = predict_price(inputs, coef_buy_hist, feat_buy_hist, meta_buy_hist)
+                            result_rent_hist = predict_price(inputs, coef_rent_hist, feat_rent_hist, meta_rent_hist)
+
+                            if "predicted_price" in result_buy_hist and "predicted_price" in result_rent_hist:
+                                buy_hist = result_buy_hist["predicted_price"]
+                                rent_hist = result_rent_hist["predicted_price"]
+                                yield_hist = (rent_hist * 12 / buy_hist * 100) if buy_hist > 0 else 0
+
+                                trend_data.append({
+                                    "month_str": str(month),
+                                    "buy_native": buy_hist,
+                                    "rent_native": rent_hist,
+                                    "yield": yield_hist,
+                                    "is_current": False
+                                })
+
+                    # Add current estimates
+                    trend_data.append({
+                        "month_str": "Current",
+                        "buy_native": buy_price,
+                        "rent_native": rent_price,
+                        "yield": gross_yield,
+                        "is_current": True
+                    })
+
+                    if trend_data:
+                        df_hist = pd.DataFrame(trend_data)
+                        df_hist["buy_display"] = df_hist["buy_native"] * rate
+                        df_hist["rent_display"] = df_hist["rent_native"] * rate
+
+                        # Create subplots for buy price, rent, and yield
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            fig_buy = px.line(
+                                df_hist,
+                                x="month_str", y="buy_display",
+                                markers=True,
+                                labels={"month_str": "Month", "buy_display": f"Buy price ({symbol})"},
+                                color="is_current",
+                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                            )
+                            fig_buy.update_traces(
+                                hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
+                                marker=dict(size=8)
+                            )
+                            fig_buy.update_layout(showlegend=False, hovermode="x unified")
+                            st.plotly_chart(fig_buy, use_container_width=True)
+                            st.caption("Estimated buy price over time")
+
+                        with col2:
+                            fig_yield = px.line(
+                                df_hist,
+                                x="month_str", y="yield",
+                                markers=True,
+                                labels={"month_str": "Month", "yield": "Gross yield (%)"},
+                                color="is_current",
+                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                            )
+                            fig_yield.update_traces(
+                                hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
+                                marker=dict(size=8)
+                            )
+                            fig_yield.update_layout(showlegend=False, hovermode="x unified")
+                            st.plotly_chart(fig_yield, use_container_width=True)
+                            st.caption("Estimated gross yield over time")

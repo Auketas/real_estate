@@ -228,13 +228,46 @@ if is_algarve:
                                 result_hist = predict_price(inputs, coef_hist, feat_hist, meta_hist)
                                 if "predicted_price" in result_hist:
                                     trend_prices.append({
-                                        "Month": month,
-                                        "Price": result_hist["predicted_price"]
+                                        "month_str": str(month),
+                                        "price_native": result_hist["predicted_price"],
+                                        "is_current": False
                                     })
+
+                        # Add current estimate as the latest point
+                        trend_prices.append({
+                            "month_str": "Current",
+                            "price_native": predicted_price,
+                            "is_current": True
+                        })
+
                         if trend_prices:
                             df_trend = pd.DataFrame(trend_prices)
-                            st.line_chart(df_trend.set_index("Month")["Price"])
-                            st.caption("How this property's predicted price has changed across monthly snapshots")
+                            df_trend["price_display"] = df_trend["price_native"] * rate
+
+                            fig_trend = px.line(
+                                df_trend,
+                                x="month_str", y="price_display",
+                                markers=True,
+                                labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
+                                color="is_current",
+                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                            )
+
+                            fig_trend.update_traces(
+                                hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                marker=dict(size=8)
+                            )
+
+                            fig_trend.update_xaxes(title_text="Month")
+                            fig_trend.update_yaxes(title_text=f"Price ({symbol})")
+                            fig_trend.update_layout(
+                                hovermode="x unified",
+                                showlegend=False,
+                                margin=dict(l=0, r=0, t=0, b=0)
+                            )
+
+                            st.plotly_chart(fig_trend, use_container_width=True)
+                            st.caption("Green point shows current estimate; historical points show how price would have changed with past market conditions")
 
     # ── Neighbourhood price distribution ──────────────────────────────────────
     st.divider()
@@ -469,11 +502,44 @@ else:
                                 result_hist = predict_price(inputs, coef_hist, feat_hist, meta_hist)
                                 if "predicted_price" in result_hist:
                                     trend_prices.append({
-                                        "Month": month,
-                                        "Price": result_hist["predicted_price"]
+                                        "month_str": str(month),
+                                        "price_native": result_hist["predicted_price"],
+                                        "is_current": False
                                     })
+
+                        # Add current estimate as the latest point
+                        trend_prices.append({
+                            "month_str": "Current",
+                            "price_native": predicted_price,
+                            "is_current": True
+                        })
+
                         if trend_prices:
                             df_trend = pd.DataFrame(trend_prices)
-                            st.line_chart(df_trend.set_index("Month")["Price"])
-                            st.caption("How this property's predicted price has changed across monthly snapshots")
+                            df_trend["price_display"] = df_trend["price_native"] * rate
+
+                            fig_trend = px.line(
+                                df_trend,
+                                x="month_str", y="price_display",
+                                markers=True,
+                                labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
+                                color="is_current",
+                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                            )
+
+                            fig_trend.update_traces(
+                                hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                marker=dict(size=8)
+                            )
+
+                            fig_trend.update_xaxes(title_text="Month")
+                            fig_trend.update_yaxes(title_text=f"Price ({symbol})")
+                            fig_trend.update_layout(
+                                hovermode="x unified",
+                                showlegend=False,
+                                margin=dict(l=0, r=0, t=0, b=0)
+                            )
+
+                            st.plotly_chart(fig_trend, use_container_width=True)
+                            st.caption("Green point shows current estimate; historical points show how price would have changed with past market conditions")
 
