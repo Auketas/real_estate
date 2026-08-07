@@ -300,21 +300,36 @@ if is_algarve:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
+                            # Separate historical and current data
+                            df_historical = df_trend[df_trend["is_current"] == False]
+                            df_current = df_trend[df_trend["is_current"] == True]
+
+                            # Create figure with historical line
                             fig_trend = px.line(
-                                df_trend,
+                                df_historical,
                                 x="month_str", y="price_display",
                                 markers=True,
                                 labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
-                                color="is_current",
-                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
                             )
+
+                            # Add current point as star marker
+                            if not df_current.empty:
+                                fig_trend.add_scatter(
+                                    x=df_current["month_str"],
+                                    y=df_current["price_display"],
+                                    mode="markers",
+                                    marker=dict(size=14, color="#7A8C6E", symbol="star"),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                )
 
                             fig_trend.update_traces(
+                                line=dict(color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                marker=dict(size=8)
+                                selector=dict(mode="lines"),
                             )
 
-                            fig_trend.update_xaxes(title_text="Month")
+                            fig_trend.update_xaxes(title_text="Month", type="category")
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
@@ -323,7 +338,7 @@ if is_algarve:
                             )
 
                             st.plotly_chart(fig_trend, use_container_width=True)
-                            st.caption("Green point shows current estimate; historical points show how price would have changed with past market conditions")
+                            st.caption("⭐ Green star shows current estimate; line shows historical prices")
 
     # ── Neighbourhood price distribution ──────────────────────────────────────
     st.divider()
@@ -406,6 +421,7 @@ else:
         map_zoom = cfg["zoom"]
         map_center = {"lat": cfg["lat"], "lon": cfg["lon"]}
 
+    # Add custom CSS to make choropleth cursor pointer
     fig = px.choropleth_mapbox(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
@@ -416,13 +432,13 @@ else:
         opacity=0.75,
         hover_data={
             "feature_name_display":   True,
-            "price_rounded":          True,
             "avg_time_on_market": ":.0f",
+            "price_display":          ":.0f",
         },
         labels={
             "feature_name_display":   "Neighbourhood",
-            "price_rounded":          f"Median price ({symbol})",
             "avg_time_on_market":     "Avg. days on market",
+            "price_display":          f"Median price ({symbol})",
         },
     )
     # Color bar shows raw price for both buy and rent
@@ -431,31 +447,28 @@ else:
         margin=dict(l=0, r=0, t=0, b=0),
     )
 
-    # Store neighbourhood info in session state for click handling
-    st.session_state.current_region = region
-    st.session_state.current_type = type_key
-    st.session_state.neighbourhood_data = df_choro[["feature_name", "feature_name_display"]].drop_duplicates()
+    # Make neighbourhood lookup
+    neighbourhood_lookup = {row["feature_name"]: row["feature_name_display"]
+                          for _, row in df_choro[["feature_name", "feature_name_display"]].drop_duplicates().iterrows()}
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── Neighbourhood selector for navigation ──────────────────────────────────
-    st.caption("Click a neighbourhood below to see detailed analysis:")
+    # Neighbourhood selector for detail view
+    st.caption("Select a neighbourhood to see detailed analysis:")
+    selected_nbhd_display = st.selectbox(
+        "Choose a neighbourhood",
+        sorted(neighbourhood_lookup.values()),
+        label_visibility="collapsed",
+        key="nbhd_detail_selector"
+    )
 
-    # Sort by neighbourhood name
-    neighbourhoods = sorted(st.session_state.neighbourhood_data["feature_name_display"].unique())
-
-    # Create clickable neighbourhood buttons
-    cols = st.columns(4)
-    for idx, nbhd in enumerate(neighbourhoods):
-        with cols[idx % 4]:
-            neighbourhood_key = st.session_state.neighbourhood_data[
-                st.session_state.neighbourhood_data["feature_name_display"] == nbhd
-            ]["feature_name"].values[0]
-
-            if st.button(nbhd, key=f"nbhd_{idx}_{nbhd}", use_container_width=True):
-                st.query_params["neighbourhood"] = neighbourhood_key
-                st.query_params["city"] = cfg["cities"][0]  # Use first city in region
-                st.rerun()
+    if selected_nbhd_display:
+        # Find the feature key for this display name
+        selected_nbhd_key = [k for k, v in neighbourhood_lookup.items() if v == selected_nbhd_display][0]
+        if st.button("View neighbourhood details →", use_container_width=True):
+            st.query_params["neighbourhood"] = selected_nbhd_key
+            st.query_params["city"] = cfg["cities"][0]
+            st.rerun()
 
     # ── Price Estimator ───────────────────────────────────────────────────────
     st.divider()
@@ -597,21 +610,36 @@ else:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
+                            # Separate historical and current data
+                            df_historical = df_trend[df_trend["is_current"] == False]
+                            df_current = df_trend[df_trend["is_current"] == True]
+
+                            # Create figure with historical line
                             fig_trend = px.line(
-                                df_trend,
+                                df_historical,
                                 x="month_str", y="price_display",
                                 markers=True,
                                 labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
-                                color="is_current",
-                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
                             )
+
+                            # Add current point as star marker
+                            if not df_current.empty:
+                                fig_trend.add_scatter(
+                                    x=df_current["month_str"],
+                                    y=df_current["price_display"],
+                                    mode="markers",
+                                    marker=dict(size=14, color="#7A8C6E", symbol="star"),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                )
 
                             fig_trend.update_traces(
+                                line=dict(color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                marker=dict(size=8)
+                                selector=dict(mode="lines"),
                             )
 
-                            fig_trend.update_xaxes(title_text="Month")
+                            fig_trend.update_xaxes(title_text="Month", type="category")
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
@@ -620,5 +648,5 @@ else:
                             )
 
                             st.plotly_chart(fig_trend, use_container_width=True)
-                            st.caption("Green point shows current estimate; historical points show how price would have changed with past market conditions")
+                            st.caption("⭐ Green star shows current estimate; line shows historical prices")
 
