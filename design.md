@@ -14,25 +14,25 @@ This document defines the agreed design direction, page structure, visual langua
 
 ## 🔴 Known Issues — START HERE FOR NEXT SESSION
 
-### **PRIORITY 1: Algarve neighbourhood aggregation filtering out valid data**
+### **PRIORITY 1: Casa Sapo scraper non-functional**
 
 **The issue:**
-- Raw data (`ads_buy`) contains 8–10 neighbourhoods per Algarve city (e.g., Loulé, Bairro dos Pescadores for Albufeira)
-- Aggregated data (`neighbourhood_latest_summary`) shows only 1 row per city (city-level fallback)
-- The aggregation script (`code/aggregate/daily_aggregation.R`) has a 10-listing minimum threshold for neighbourhoods; since Algarve neighbourhoods have < 10 listings each, they all get filtered out and replaced with a single city-level row
+- Casa Sapo scraper does not work and is producing no valid data
+- Decision: Do not display Casa Sapo sourced data on maps or in analysis
+- Imovirtual scraper is working; Casa Sapo should be investigated/repaired or deprecated
 
-**Why it matters:**
-- Without neighbourhood breakdown, Algarve page is just a static map with no interactivity
-- Neighbourhood bar chart (currently showing 1 bar per city) is the only deeper feature for Algarve users
+**Status:** Pending investigation / decision on whether to fix or remove
 
-**What to do:**
-1. Open `code/aggregate/daily_aggregation.R`
-2. Find the neighbourhood filtering logic (10-listing threshold)
-3. Lower threshold for Algarve cities to 3–5 listings (or keep 10 for other regions)
-4. Re-run daily aggregation to repopulate `neighbourhood_latest_summary` for Algarve
-5. Add transparency note on Algarve page: "Neighbourhood data is limited for the Algarve region"
+---
 
-**Effort:** Low (threshold change + script re-run). Do this first when resuming.
+### **PRIORITY 2: Algarve neighbourhoods are too sparse for map display**
+
+**The decision:**
+- Algarve neighbourhoods have very few listings (3–9 per neighbourhood)
+- Map display of sparse neighbourhoods creates confusing, unreliable visuals
+- **Decision:** Show only city-level view for Algarve (current state is correct)
+- Neighbourhood breakdown bar chart remains available below the map for transparency
+- No map changes needed; current implementation is desired state
 
 ---
 
@@ -834,12 +834,12 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 **Execution order (strictly sequential):**
 
-1. **Phase 8 (Price calculators) — Build buy price calculator:**
-   - [ ] Inputs: neighbourhood, tipologia, area slider, feature toggles (all optional)
-   - [ ] Output: predicted price with 50% confidence interval (range shown, no label)
-   - [ ] Visual band widens/narrows with features specified
-   - [ ] Helper text: "Add more details to narrow the estimate"
-   - [ ] Show listing count that informed the estimate
+1. **Phase 8a (Price calculator trends) — NEXT: Improve historical trends visualization:**
+   - [ ] **Visual improvements to trend chart:**
+     - [ ] Include current model's prediction as a distinct point on the trend line (currently missing — confusing users)
+     - [ ] Improve chart styling: clearer legends, labeled axes, better visual hierarchy
+     - [ ] Ensure current estimate is visually distinct from historical data
+   - [ ] Location: Both buy calculator (Page 3 > Algarve section) and rent calculator (Page 4)
    
 2. **Phase 9 (Neighbourhood detail pages) — Build with hover redesign:**
    - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)
