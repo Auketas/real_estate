@@ -28,6 +28,62 @@ LOOKUP = _load_json("neighbourhood_lookup.json")
 
 ALGARVE_CITIES = ("albufeira", "faro", "lagoa", "lagos", "loule", "portimao")
 
+# ── Check for neighbourhood detail view ────────────────────────────────────────
+if "neighbourhood" in st.query_params and "city" in st.query_params:
+    neighbourhood = st.query_params["neighbourhood"]
+    city = st.query_params["city"]
+
+    st.title(f"Neighbourhood: {neighbourhood.replace('-', ' ').title()}")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Back to regional view"):
+            st.query_params.clear()
+            st.rerun()
+
+    # Get neighbourhood data
+    df_nbhd = get_neighbourhood_summary(city=city, listing_type="buy")
+    df_nbhd = df_nbhd[df_nbhd["neighbourhood"] == neighbourhood]
+
+    if df_nbhd.empty:
+        st.info("No data available for this neighbourhood.")
+    else:
+        row = df_nbhd.iloc[0]
+
+        # Display key metrics
+        st.subheader("Key Metrics")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "Median price",
+                fmt_price(row["median_price"])
+            )
+
+        with col2:
+            st.metric(
+                f"Price per m² ({symbol})",
+                f"{row['median_price_per_m2'] * rate:,.0f}"
+            )
+
+        with col3:
+            st.metric(
+                "Avg. days on market",
+                f"{row['avg_time_on_market_days']:.0f}"
+            )
+
+        with col4:
+            st.metric(
+                "Active listings",
+                f"{int(row['listing_count'])}"
+            )
+
+        st.divider()
+        st.info("📌 Full neighbourhood analysis coming soon — price breakdown by property type, historical trends, and liveability metrics.")
+
+    st.stop()
+
+# ── Regional overview view ────────────────────────────────────────────────────
 REGIONS = {
     "Porto":   dict(cities=("porto", "vila-nova-de-gaia", "maia"),
                     geojson="porto_region.geojson",  featureidkey="properties.NAME_3",
@@ -360,13 +416,11 @@ else:
         opacity=0.75,
         hover_data={
             "feature_name_display":   True,
-            "ppm2_rounded":           True,
             "price_rounded":          True,
             "avg_time_on_market": ":.0f",
         },
         labels={
             "feature_name_display":   "Neighbourhood",
-            "ppm2_rounded":           f"Median {symbol}/m²",
             "price_rounded":          f"Median price ({symbol})",
             "avg_time_on_market":     "Avg. days on market",
         },
@@ -376,7 +430,32 @@ else:
         coloraxis_colorbar=dict(title=symbol),
         margin=dict(l=0, r=0, t=0, b=0),
     )
+
+    # Store neighbourhood info in session state for click handling
+    st.session_state.current_region = region
+    st.session_state.current_type = type_key
+    st.session_state.neighbourhood_data = df_choro[["feature_name", "feature_name_display"]].drop_duplicates()
+
     st.plotly_chart(fig, use_container_width=True)
+
+    # ── Neighbourhood selector for navigation ──────────────────────────────────
+    st.caption("Click a neighbourhood below to see detailed analysis:")
+
+    # Sort by neighbourhood name
+    neighbourhoods = sorted(st.session_state.neighbourhood_data["feature_name_display"].unique())
+
+    # Create clickable neighbourhood buttons
+    cols = st.columns(4)
+    for idx, nbhd in enumerate(neighbourhoods):
+        with cols[idx % 4]:
+            neighbourhood_key = st.session_state.neighbourhood_data[
+                st.session_state.neighbourhood_data["feature_name_display"] == nbhd
+            ]["feature_name"].values[0]
+
+            if st.button(nbhd, key=f"nbhd_{idx}_{nbhd}", use_container_width=True):
+                st.query_params["neighbourhood"] = neighbourhood_key
+                st.query_params["city"] = cfg["cities"][0]  # Use first city in region
+                st.rerun()
 
     # ── Price Estimator ───────────────────────────────────────────────────────
     st.divider()
