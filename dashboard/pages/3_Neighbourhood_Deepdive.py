@@ -300,6 +300,11 @@ if is_algarve:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
+                            # Sort by month (keeping "Current" at end)
+                            non_current = df_trend[df_trend["month_str"] != "Current"].sort_values("month_str")
+                            current = df_trend[df_trend["month_str"] == "Current"]
+                            df_trend = pd.concat([non_current, current], ignore_index=True)
+
                             # Create figure with all data
                             fig_trend = px.line(
                                 df_trend,
@@ -329,8 +334,9 @@ if is_algarve:
                                     showlegend=False,
                                 )
 
-                            # Set categorical x-axis with proper ordering
-                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=df_trend["month_str"].tolist())
+                            # Set categorical x-axis with proper ordering (oldest to newest, Current last)
+                            month_order = df_trend["month_str"].tolist()
+                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=month_order)
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
@@ -611,6 +617,11 @@ else:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
+                            # Sort by month (keeping "Current" at end)
+                            non_current = df_trend[df_trend["month_str"] != "Current"].sort_values("month_str")
+                            current = df_trend[df_trend["month_str"] == "Current"]
+                            df_trend = pd.concat([non_current, current], ignore_index=True)
+
                             # Create figure with all data
                             fig_trend = px.line(
                                 df_trend,
@@ -640,8 +651,9 @@ else:
                                     showlegend=False,
                                 )
 
-                            # Set categorical x-axis with proper ordering
-                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=df_trend["month_str"].tolist())
+                            # Set categorical x-axis with proper ordering (oldest to newest, Current last)
+                            month_order = df_trend["month_str"].tolist()
+                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=month_order)
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
