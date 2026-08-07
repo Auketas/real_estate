@@ -300,36 +300,37 @@ if is_algarve:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
-                            # Separate historical and current data
-                            df_historical = df_trend[df_trend["is_current"] == False]
-                            df_current = df_trend[df_trend["is_current"] == True]
-
-                            # Create figure with historical line
+                            # Create figure with all data
                             fig_trend = px.line(
-                                df_historical,
+                                df_trend,
                                 x="month_str", y="price_display",
                                 markers=True,
                                 labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
                             )
 
-                            # Add current point as star marker
-                            if not df_current.empty:
-                                fig_trend.add_scatter(
-                                    x=df_current["month_str"],
-                                    y=df_current["price_display"],
-                                    mode="markers",
-                                    marker=dict(size=14, color="#7A8C6E", symbol="star"),
-                                    name="Current",
-                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                )
-
+                            # Update line and marker styling
                             fig_trend.update_traces(
-                                line=dict(color="#C4603A"),
+                                line=dict(color="#C4603A", width=2),
+                                marker=dict(size=6, color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                selector=dict(mode="lines"),
                             )
 
-                            fig_trend.update_xaxes(title_text="Month", type="category")
+                            # Highlight current point with large green star
+                            current_idx = df_trend[df_trend["is_current"] == True].index
+                            if len(current_idx) > 0:
+                                idx = current_idx[0]
+                                fig_trend.add_scatter(
+                                    x=[df_trend.loc[idx, "month_str"]],
+                                    y=[df_trend.loc[idx, "price_display"]],
+                                    mode="markers",
+                                    marker=dict(size=16, color="#7A8C6E", symbol="star", line=dict(color="#C4603A", width=2)),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                    showlegend=False,
+                                )
+
+                            # Set categorical x-axis with proper ordering
+                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=df_trend["month_str"].tolist())
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
@@ -338,7 +339,7 @@ if is_algarve:
                             )
 
                             st.plotly_chart(fig_trend, use_container_width=True)
-                            st.caption("⭐ Green star shows current estimate; line shows historical prices")
+                            st.caption("⭐ Green star = current estimate | Line = how price would have changed with past market data")
 
     # ── Neighbourhood price distribution ──────────────────────────────────────
     st.divider()
@@ -610,36 +611,37 @@ else:
                             df_trend = pd.DataFrame(trend_prices)
                             df_trend["price_display"] = df_trend["price_native"] * rate
 
-                            # Separate historical and current data
-                            df_historical = df_trend[df_trend["is_current"] == False]
-                            df_current = df_trend[df_trend["is_current"] == True]
-
-                            # Create figure with historical line
+                            # Create figure with all data
                             fig_trend = px.line(
-                                df_historical,
+                                df_trend,
                                 x="month_str", y="price_display",
                                 markers=True,
                                 labels={"month_str": "Month", "price_display": f"Price ({symbol})"},
                             )
 
-                            # Add current point as star marker
-                            if not df_current.empty:
-                                fig_trend.add_scatter(
-                                    x=df_current["month_str"],
-                                    y=df_current["price_display"],
-                                    mode="markers",
-                                    marker=dict(size=14, color="#7A8C6E", symbol="star"),
-                                    name="Current",
-                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                )
-
+                            # Update line and marker styling
                             fig_trend.update_traces(
-                                line=dict(color="#C4603A"),
+                                line=dict(color="#C4603A", width=2),
+                                marker=dict(size=6, color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
-                                selector=dict(mode="lines"),
                             )
 
-                            fig_trend.update_xaxes(title_text="Month", type="category")
+                            # Highlight current point with large green star
+                            current_idx = df_trend[df_trend["is_current"] == True].index
+                            if len(current_idx) > 0:
+                                idx = current_idx[0]
+                                fig_trend.add_scatter(
+                                    x=[df_trend.loc[idx, "month_str"]],
+                                    y=[df_trend.loc[idx, "price_display"]],
+                                    mode="markers",
+                                    marker=dict(size=16, color="#7A8C6E", symbol="star", line=dict(color="#C4603A", width=2)),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>Price: " + symbol + " %{y:,.0f}<extra></extra>",
+                                    showlegend=False,
+                                )
+
+                            # Set categorical x-axis with proper ordering
+                            fig_trend.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=df_trend["month_str"].tolist())
                             fig_trend.update_yaxes(title_text=f"Price ({symbol})")
                             fig_trend.update_layout(
                                 hovermode="x unified",
@@ -648,5 +650,5 @@ else:
                             )
 
                             st.plotly_chart(fig_trend, use_container_width=True)
-                            st.caption("⭐ Green star shows current estimate; line shows historical prices")
+                            st.caption("⭐ Green star = current estimate | Line = how price would have changed with past market data")
 
