@@ -77,59 +77,6 @@ st.dataframe(
     use_container_width=True, hide_index=True,
 )
 
-# ---- Gross yield trend (historical)
-with st.expander("📊 Yield trends (monthly snapshots)"):
-    st.caption("How gross yield has changed over time for each city")
-
-    available_months = get_available_snapshot_months("buy")
-    if available_months and len(available_months) > 1:
-        yield_trends = []
-
-        for city in YIELD_CITIES:
-            city_label = merged[merged["city"] == city]["city_label"].values
-            if len(city_label) == 0:
-                continue
-            city_label = city_label[0]
-
-            for month in available_months[-12:]:  # Last 12 months
-                try:
-                    buy_coef = get_model_coefficients(city, "buy", month)
-                    rent_coef = get_model_coefficients(city, "rent", month)
-
-                    if not buy_coef.empty and not rent_coef.empty:
-                        # Get intercepts and basic prices from coefficients
-                        buy_intercept = buy_coef[buy_coef["variable_name"] == "intercept"]["coefficient"].values
-                        rent_intercept = rent_coef[rent_coef["variable_name"] == "intercept"]["coefficient"].values
-
-                        if len(buy_intercept) > 0 and len(rent_intercept) > 0:
-                            # Base prices from intercepts (log scale)
-                            base_buy = np.exp(buy_intercept[0])
-                            base_rent = np.exp(rent_intercept[0])
-
-                            yield_pct = (base_rent * 12 / base_buy * 100) if base_buy > 0 else 0
-                            if 0 < yield_pct < 20:
-                                yield_trends.append({
-                                    "month_str": str(month),
-                                    "city_label": city_label,
-                                    "yield": yield_pct
-                                })
-                except:
-                    pass
-
-        if yield_trends:
-            df_yields = pd.DataFrame(yield_trends)
-            fig_yield = px.line(
-                df_yields,
-                x="month_str", y="yield",
-                color="city_label",
-                markers=True,
-                labels={"month_str": "Month", "yield": "Gross yield (%)", "city_label": "City"},
-            )
-            fig_yield.update_traces(hovertemplate="<b>%{x}</b><br>%{fullData.name}: %{y:.1f}%<extra></extra>")
-            fig_yield.update_layout(hovermode="x unified")
-            st.plotly_chart(fig_yield, use_container_width=True)
-        else:
-            st.info("Not enough historical data to show yield trends yet")
 
 
 # ---- Rental Yield Calculator ────────────────────────────────────────────────
@@ -271,10 +218,10 @@ else:
             st.write("")
 
             # Historical yield trend (if monthly snapshots available)
-            if available_months:
+            if available_months and len(available_months) > 1:
                 with st.expander("📊 Yield trend (monthly snapshots)"):
                     trend_data = []
-                    for month in available_months[:12]:  # Show last 12 months
+                    for month in available_months[-12:]:  # Show last 12 months
                         coef_buy_hist = get_model_coefficients(selected_city, "buy", month)
                         feat_buy_hist = get_model_feature_stats(selected_city, "buy", month)
                         meta_buy_hist = get_model_metadata(selected_city, "buy", month)
@@ -293,6 +240,7 @@ else:
                                 yield_hist = (rent_hist * 12 / buy_hist * 100) if buy_hist > 0 else 0
 
                                 trend_data.append({
+                                    "index": len(trend_data),
                                     "month_str": str(month),
                                     "buy_native": buy_hist,
                                     "rent_native": rent_hist,
@@ -300,8 +248,9 @@ else:
                                     "is_current": False
                                 })
 
-                    # Add current estimates
+                    # Add current estimates at the end
                     trend_data.append({
+                        "index": len(trend_data),
                         "month_str": "Current",
                         "buy_native": buy_price,
                         "rent_native": rent_price,
@@ -314,7 +263,7 @@ else:
                         df_hist["buy_display"] = df_hist["buy_native"] * rate
                         df_hist["rent_display"] = df_hist["rent_native"] * rate
 
-                        # Create subplots for buy price, rent, and yield
+                        # Create subplots for buy price and yield
                         col1, col2 = st.columns(2)
 
                         with col1:
@@ -330,9 +279,10 @@ else:
                                 hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
                                 marker=dict(size=8)
                             )
+                            fig_buy.update_xaxes(type="category")
                             fig_buy.update_layout(showlegend=False, hovermode="x unified")
                             st.plotly_chart(fig_buy, use_container_width=True)
-                            st.caption("Estimated buy price over time")
+                            st.caption("Estimated buy price over time (green = current estimate)")
 
                         with col2:
                             fig_yield = px.line(
@@ -347,6 +297,7 @@ else:
                                 hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
                                 marker=dict(size=8)
                             )
+                            fig_yield.update_xaxes(type="category")
                             fig_yield.update_layout(showlegend=False, hovermode="x unified")
                             st.plotly_chart(fig_yield, use_container_width=True)
-                            st.caption("Estimated gross yield over time")
+                            st.caption("Estimated gross yield over time (green = current estimate)")
