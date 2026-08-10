@@ -265,7 +265,9 @@ else:
                         non_current = df_hist[df_hist["month_str"] != "Current"].sort_values("month_str", ascending=False)
                         current = df_hist[df_hist["month_str"] == "Current"]
                         # Reverse to get oldest-to-newest, then append Current
-                        month_order = non_current["month_str"].tolist()[::-1] + ["Current"]
+                        non_current = non_current.iloc[::-1]  # Reverse the order
+                        df_hist = pd.concat([non_current, current], ignore_index=True)
+                        month_order = df_hist["month_str"].tolist()
 
                         # Create subplots for buy price and yield
                         col1, col2 = st.columns(2)
@@ -333,4 +335,3 @@ else:
                             fig_yield.update_layout(hovermode="x unified", showlegend=False, margin=dict(l=0, r=0, t=0, b=0))
                             st.plotly_chart(fig_yield, use_container_width=True)
                             st.caption("⭐ Green star = current estimate | Line = historical estimate")
-                            st.write("🔷 Deployment check: penguin")
