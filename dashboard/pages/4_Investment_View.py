@@ -333,3 +333,4 @@ else:
                             fig_yield.update_layout(hovermode="x unified", showlegend=False, margin=dict(l=0, r=0, t=0, b=0))
                             st.plotly_chart(fig_yield, use_container_width=True)
                             st.caption("⭐ Green star = current estimate | Line = historical estimate")
+                            st.write("🔷 Deployment check: penguin")
