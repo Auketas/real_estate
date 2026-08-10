@@ -259,9 +259,17 @@ else:
                     })
 
                     if trend_data:
-                        df_hist = pd.DataFrame(trend_data).sort_values("index")
+                        df_hist = pd.DataFrame(trend_data)
                         df_hist["buy_display"] = df_hist["buy_native"] * rate
                         df_hist["rent_display"] = df_hist["rent_native"] * rate
+
+                        # Sort chronologically: separate current from historical, sort historical by date, then append current
+                        df_current = df_hist[df_hist["is_current"] == True]
+                        df_historical = df_hist[df_hist["is_current"] == False].copy()
+                        df_historical["month_dt"] = pd.to_datetime(df_historical["month_str"])
+                        df_historical = df_historical.sort_values("month_dt")
+                        df_hist = pd.concat([df_historical, df_current], ignore_index=True)
+                        month_order = df_hist["month_str"].tolist()
 
                         # Create subplots for buy price and yield
                         col1, col2 = st.columns(2)
@@ -274,7 +282,7 @@ else:
                                 labels={"month_str": "Month", "buy_display": f"Buy price ({symbol})"},
                                 color="is_current",
                                 color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
-                                category_orders={"month_str": df_hist["month_str"].tolist()},
+                                category_orders={"month_str": month_order},
                             )
                             fig_buy.update_traces(
                                 hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
@@ -293,7 +301,7 @@ else:
                                 labels={"month_str": "Month", "yield": "Gross yield (%)"},
                                 color="is_current",
                                 color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
-                                category_orders={"month_str": df_hist["month_str"].tolist()},
+                                category_orders={"month_str": month_order},
                             )
                             fig_yield.update_traces(
                                 hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
