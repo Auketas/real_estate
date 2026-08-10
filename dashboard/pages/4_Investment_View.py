@@ -288,7 +288,7 @@ else:
                                 hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
                                 marker=dict(size=8)
                             )
-                            fig_buy.update_xaxes(type="category")
+                            fig_buy.update_xaxes(type="category", categoryorder="array", categoryarray=month_order)
                             fig_buy.update_layout(showlegend=False, hovermode="x unified")
                             st.plotly_chart(fig_buy, use_container_width=True)
                             st.caption("Estimated buy price over time (green = current estimate)")
@@ -307,7 +307,7 @@ else:
                                 hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
                                 marker=dict(size=8)
                             )
-                            fig_yield.update_xaxes(type="category")
+                            fig_yield.update_xaxes(type="category", categoryorder="array", categoryarray=month_order)
                             fig_yield.update_layout(showlegend=False, hovermode="x unified")
                             st.plotly_chart(fig_yield, use_container_width=True)
                             st.caption("Estimated gross yield over time (green = current estimate)")
