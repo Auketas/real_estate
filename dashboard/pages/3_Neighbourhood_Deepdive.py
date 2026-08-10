@@ -157,16 +157,7 @@ if is_algarve:
         coloraxis_colorbar=dict(title=symbol),
         margin=dict(l=0, r=0, t=0, b=0),
     )
-    st.plotly_chart(fig, use_container_width=True, key="algarve_city_map")
-
-    # Handle map clicks for Algarve city view
-    selected = st.plotly_event(fig, select_points=True, key="algarve_city_map")
-    if selected and "points" in selected and len(selected["points"]) > 0:
-        clicked_point = selected["points"][0]
-        if "location" in clicked_point:
-            clicked_city = clicked_point["location"]
-            st.query_params["city"] = clicked_city
-            st.rerun()
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Neighbourhood breakdown")
     algarve_city = st.selectbox(
@@ -467,20 +458,10 @@ else:
     neighbourhood_lookup = {row["feature_name"]: row["feature_name_display"]
                           for _, row in df_choro[["feature_name", "feature_name_display"]].drop_duplicates().iterrows()}
 
-    st.plotly_chart(fig, use_container_width=True, key=f"{region}_neighbourhood_map")
+    st.plotly_chart(fig, use_container_width=True)
 
-    # Handle map clicks for neighbourhood detail view
-    selected = st.plotly_event(fig, select_points=True, key=f"{region}_neighbourhood_map")
-    if selected and "points" in selected and len(selected["points"]) > 0:
-        clicked_point = selected["points"][0]
-        if "location" in clicked_point:
-            clicked_nbhd = clicked_point["location"]
-            st.query_params["neighbourhood"] = clicked_nbhd
-            st.query_params["city"] = cfg["cities"][0]
-            st.rerun()
-
-    # Neighbourhood selector for detail view (fallback to dropdown)
-    st.caption("Or select a neighbourhood to see detailed analysis:")
+    # Neighbourhood selector for detail view
+    st.caption("Select a neighbourhood to see detailed analysis:")
     selected_nbhd_display = st.selectbox(
         "Choose a neighbourhood",
         sorted(neighbourhood_lookup.values()),
