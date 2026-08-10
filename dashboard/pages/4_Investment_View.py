@@ -259,7 +259,7 @@ else:
                     })
 
                     if trend_data:
-                        df_hist = pd.DataFrame(trend_data)
+                        df_hist = pd.DataFrame(trend_data).sort_values("index")
                         df_hist["buy_display"] = df_hist["buy_native"] * rate
                         df_hist["rent_display"] = df_hist["rent_native"] * rate
 

@@ -159,6 +159,15 @@ if is_algarve:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    # Handle map clicks for Algarve city view
+    click_event = st.plotly_event(fig, select_points=True)
+    if click_event and "points" in click_event and len(click_event["points"]) > 0:
+        clicked_point = click_event["points"][0]
+        if "location" in clicked_point:
+            clicked_city = clicked_point["location"]
+            st.query_params["city"] = clicked_city
+            st.rerun()
+
     st.subheader("Neighbourhood breakdown")
     algarve_city = st.selectbox(
         "Select city", list(ALGARVE_CITIES), format_func=lambda c: CITY_LABELS[c]
@@ -460,8 +469,18 @@ else:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Neighbourhood selector for detail view
-    st.caption("Select a neighbourhood to see detailed analysis:")
+    # Handle map clicks for neighbourhood detail view
+    click_event = st.plotly_event(fig, select_points=True)
+    if click_event and "points" in click_event and len(click_event["points"]) > 0:
+        clicked_point = click_event["points"][0]
+        if "location" in clicked_point:
+            clicked_nbhd = clicked_point["location"]
+            st.query_params["neighbourhood"] = clicked_nbhd
+            st.query_params["city"] = cfg["cities"][0]
+            st.rerun()
+
+    # Neighbourhood selector for detail view (fallback to dropdown)
+    st.caption("Or select a neighbourhood to see detailed analysis:")
     selected_nbhd_display = st.selectbox(
         "Choose a neighbourhood",
         sorted(neighbourhood_lookup.values()),
