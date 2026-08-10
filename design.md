@@ -863,6 +863,230 @@ Work through these phases sequentially. Complete and verify each phase before st
 - Filter sparse neighbourhoods (< 5 listings) from choropleth to fix Lisbon rent scale issue
 - Removed redundant confidence label from price estimator (range already shows uncertainty)
 
+### Recent Fixes & Updates (August 10, 2026)
+- **Trend graphs fixed** — Buy price and rental yield trend graphs now display correctly with chronological x-axis ordering (oldest → newest → Current)
+  - Issue: dataframe and x-axis categoryarray were misaligned, causing lines to jump around
+  - Solution: reorder dataframe to match categoryarray order before plotting
+  - Both Investment View yield calculator and Neighbourhood Deepdive price calculator working correctly
+- Removed platform source mentions from landing page (no "Imovirtual and Casa Sapo" branding)
+- Streamlit upgraded to >=1.38 (enables future interactivity features)
+
+---
+
+## Neighbourhood Liveability Data Scraper Plan (Phase 9 Implementation)
+
+### Overview
+Neighbourhood detail pages require four liveability data sources. These are fetched once or quarterly (not daily like listing scrapers). No GitHub Actions automation needed.
+
+### Data Sources & Collection Strategy
+
+#### 1. Walk Score API
+**Source:** walkScore.com API  
+**Frequency:** Quarterly (scores change slowly)  
+**Rate limit:** 10k requests/month (free tier)
+
+**Implementation:**
+```r
+# Pseudocode
+for each neighbourhood:
+  lat <- neighbourhood_centroid$lat
+  lon <- neighbourhood_centroid$lon
+  response <- GET(paste0("https://api.walkscore.com/score?",
+    "lat=", lat, "&lon=", lon, "&format=json&apikey=", API_KEY))
+  walk_score <- response$walk_score
+  transit_score <- response$transit_score
+  bike_score <- response$bike_score
+  # Insert into neighbourhood_metadata
+```
+
+**Database columns:**
+- `walk_score` INTEGER (0–100)
+- `transit_score` INTEGER (0–100)
+- `bike_score` INTEGER (0–100)
+
+---
+
+#### 2. OpenStreetMap Amenities (Overpass API)
+**Source:** Overpass API (free, no auth)  
+**Frequency:** Quarterly  
+**Rate limit:** Soft limits; space requests ~1–2 sec apart
+
+**Implementation:**
+Loop through each neighbourhood's GeoJSON polygon. For each amenity type, construct an Overpass QL query:
+
+```
+[bbox=south,west,north,east];
+(
+  node["amenity"="school"];
+  way["amenity"="school"];
+  relation["amenity"="school"];
+);
+out center;
+```
+
+**Amenity queries needed:**
+
+| Amenity | OSM Filter | Type |
+|---------|-----------|------|
+| Schools | `"amenity"="school"` | Node/Way/Relation |
+| Grocery stores | `"shop"="supermarket"` OR `"shop"="groceries"` OR `"amenity"="marketplace"` | Node/Way |
+| Restaurants | `"amenity"="restaurant"` OR `"amenity"="cafe"` | Node/Way |
+| Bars/Nightlife | `"amenity"="bar"` OR `"amenity"="nightclub"` OR `"amenity"="pub"` | Node/Way |
+| Parks | `"leisure"="park"` OR `"leisure"="garden"` OR `"leisure"="playground"` | Way/Relation |
+| Tourist attractions | `"tourism"="attraction"` OR `"tourism"="museum"` | Node/Way |
+| Train stations | `"railway"="station"` | Node/Way |
+
+**Database columns:**
+- `schools_count` INTEGER
+- `grocery_stores_count` INTEGER
+- `restaurants_count` INTEGER
+- `bars_count` INTEGER
+- `parks_count` INTEGER
+- `tourist_attractions_count` INTEGER
+
+**R implementation notes:**
+- Use `httr::GET()` with Overpass API endpoint: `https://overpass-api.de/api/interpreter`
+- Pass Overpass QL query in POST body
+- Parse JSON response, count results
+- Handle timeouts gracefully (Overpass server sometimes slow)
+- Space requests ~1.5 sec apart to respect rate limits
+
+---
+
+#### 3. Travel Times (Pre-computed, One-time)
+**Source:** Haversine distance calculation  
+**Frequency:** Never (fixed infrastructure)
+
+**Fixed landmarks:**
+
+| City | Train Station | Coordinates | Airport | Coordinates |
+|------|---------------|-------------|---------|------------|
+| Lisboa | Santa Apolónia | 38.7097, -9.1366 | Humberto Delgado Lisbon | 38.6749, -9.1350 |
+| Porto | São Bento | 41.1633, -8.6294 | Francisco de Sá Carneiro | 41.2411, -8.6761 |
+| Algarve | Faro | 37.0144, -7.9754 | Faro Airport | 37.0144, -7.9754 |
+
+**Calculation:**
+- Haversine distance (lat/lon) → km
+- Walking: km ÷ 1.4 km/min = minutes (avg walking speed ~5 km/h)
+- Driving: km ÷ 50 km/h = minutes (urban average)
+
+**Database columns:**
+- `min_to_train_station` INTEGER (walking minutes, or NULL if >60 min)
+- `min_to_airport` INTEGER (driving minutes)
+
+**R implementation:**
+```r
+# Haversine function
+haversine <- function(lat1, lon1, lat2, lon2) {
+  R <- 6371  # Earth radius in km
+  dLat <- (lat2 - lat1) * pi / 180
+  dLon <- (lon2 - lon1) * pi / 180
+  a <- sin(dLat/2)^2 + cos(lat1*pi/180) * cos(lat2*pi/180) * sin(dLon/2)^2
+  c <- 2 * atan2(sqrt(a), sqrt(1-a))
+  return(R * c)
+}
+
+# For each neighbourhood:
+km_to_train <- haversine(nbhd_lat, nbhd_lon, train_lat, train_lon)
+min_to_train <- km_to_train / 1.4  # walking
+km_to_airport <- haversine(nbhd_lat, nbhd_lon, airport_lat, airport_lon)
+min_to_airport <- km_to_airport / 50  # driving
+```
+
+---
+
+#### 4. Vibrancy Index (OSM)
+**Source:** Overpass API (bars + tourist attractions)  
+**Frequency:** Quarterly
+
+**Calculation:**
+```
+vibrancy_score = bars_count + (tourist_attractions_count / 2)
+
+vibrancy_category:
+  if vibrancy_score < 5: "low" (quiet residential)
+  if 5 ≤ vibrancy_score ≤ 20: "medium" (mixed)
+  if vibrancy_score > 20: "high" (lively/touristy)
+```
+
+**Database columns:**
+- `vibrancy_score` NUMERIC (derived, not stored)
+- `vibrancy_category` VARCHAR(20) — "low", "medium", "high"
+
+---
+
+### Database Table
+
+```sql
+CREATE TABLE neighbourhood_metadata (
+    id SERIAL PRIMARY KEY,
+    city VARCHAR(100),
+    neighbourhood VARCHAR(200),
+    
+    -- Walk Score
+    walk_score INTEGER,
+    transit_score INTEGER,
+    bike_score INTEGER,
+    
+    -- OSM Amenities
+    schools_count INTEGER,
+    grocery_stores_count INTEGER,
+    restaurants_count INTEGER,
+    bars_count INTEGER,
+    parks_count INTEGER,
+    tourist_attractions_count INTEGER,
+    
+    -- Travel times
+    min_to_train_station INTEGER,
+    min_to_airport INTEGER,
+    
+    -- Vibrancy
+    vibrancy_category VARCHAR(20),
+    
+    -- Metadata
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    
+    UNIQUE(city, neighbourhood)
+);
+```
+
+---
+
+### Implementation Phases
+
+**Phase 1: Travel Times + Walk Score (2–3 hours)**
+- Pre-compute haversine distances from each neighbourhood centroid to train stations and airports
+- Query Walk Score API for all ~300 neighbourhoods
+- Test on 10 neighbourhoods first; validate results are plausible
+- Insert into `neighbourhood_metadata`
+
+**Phase 2: OSM Amenities (3–4 hours)**
+- Write Overpass API query builder in R
+- Loop through each neighbourhood GeoJSON polygon
+- Query for each amenity type; count results
+- Handle timeouts and rate limits
+- Validate against manual spot-checks (e.g. "Baixa should have 50+ restaurants")
+
+**Phase 3: Vibrancy + Final QA (1–2 hours)**
+- Add bars + tourist attractions queries
+- Compute vibrancy_category
+- Run full scrape on all cities
+- Compare results to manual inspection
+- Document any anomalies (e.g. "Algarve has no bars marked on OSM" → expected)
+
+**Total effort:** ~6–9 hours coding + validation
+
+---
+
+### Execution Notes
+
+- **No GitHub Actions:** These are one-time or quarterly, not daily. Run manually via `Rscript` when updates needed.
+- **No authentication:** Walk Score requires API key (free tier). Overpass is fully free.
+- **Caching:** Walk Score results don't change often; cache aggressively. Requery only quarterly or when adding new neighbourhoods.
+- **Fallbacks:** If Walk Score API is down, mark record as "pending_walk_score". OSM queries timing out? Log and retry later. Don't block on single failures.
+- **Data quality:** Overpass data is crowdsourced and patchy in some regions. Flag neighbourhoods with suspiciously low counts (e.g. 0 restaurants).
+
 ---
 
 ## Pre-Launch Checklist
