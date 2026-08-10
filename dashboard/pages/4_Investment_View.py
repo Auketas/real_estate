@@ -274,6 +274,7 @@ else:
                                 labels={"month_str": "Month", "buy_display": f"Buy price ({symbol})"},
                                 color="is_current",
                                 color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                                category_orders={"month_str": df_hist["month_str"].tolist()},
                             )
                             fig_buy.update_traces(
                                 hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
@@ -292,6 +293,7 @@ else:
                                 labels={"month_str": "Month", "yield": "Gross yield (%)"},
                                 color="is_current",
                                 color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
+                                category_orders={"month_str": df_hist["month_str"].tolist()},
                             )
                             fig_yield.update_traces(
                                 hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",

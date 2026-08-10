@@ -12,7 +12,7 @@ authenticator = load_authenticator()
 if not st.session_state.get("authentication_status"):
     st.title("Portugal Real Estate Intelligence")
     st.markdown(
-        "Daily data from Imovirtual and Casa Sapo — covering Porto, Lisbon, and the Algarve. "
+        "Daily market data covering Porto, Lisbon, and the Algarve. "
         "Built for expats and buy-to-let investors who want numbers, not listings."
     )
 
