@@ -263,12 +263,10 @@ else:
                         df_hist["buy_display"] = df_hist["buy_native"] * rate
                         df_hist["rent_display"] = df_hist["rent_native"] * rate
 
-                        # Sort chronologically: separate current from historical, sort historical by date, then append current
-                        df_current = df_hist[df_hist["is_current"] == True]
-                        df_historical = df_hist[df_hist["is_current"] == False].copy()
-                        df_historical["month_dt"] = pd.to_datetime(df_historical["month_str"])
-                        df_historical = df_historical.sort_values("month_dt")
-                        df_hist = pd.concat([df_historical, df_current], ignore_index=True)
+                        # Sort by month (keeping "Current" at end)
+                        non_current = df_hist[df_hist["is_current"] == False].sort_values("month_str")
+                        current = df_hist[df_hist["is_current"] == True]
+                        df_hist = pd.concat([non_current, current], ignore_index=True)
                         month_order = df_hist["month_str"].tolist()
 
                         # Create subplots for buy price and yield
