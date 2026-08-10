@@ -221,7 +221,7 @@ else:
             if available_months and len(available_months) > 1:
                 with st.expander("📊 Yield trend (monthly snapshots)"):
                     trend_data = []
-                    for month in available_months[-12:]:  # Show last 12 months
+                    for month in available_months[:12]:  # Show first 12 months
                         coef_buy_hist = get_model_coefficients(selected_city, "buy", month)
                         feat_buy_hist = get_model_feature_stats(selected_city, "buy", month)
                         meta_buy_hist = get_model_metadata(selected_city, "buy", month)
@@ -240,7 +240,6 @@ else:
                                 yield_hist = (rent_hist * 12 / buy_hist * 100) if buy_hist > 0 else 0
 
                                 trend_data.append({
-                                    "index": len(trend_data),
                                     "month_str": str(month),
                                     "buy_native": buy_hist,
                                     "rent_native": rent_hist,
@@ -250,7 +249,6 @@ else:
 
                     # Add current estimates at the end
                     trend_data.append({
-                        "index": len(trend_data),
                         "month_str": "Current",
                         "buy_native": buy_price,
                         "rent_native": rent_price,
@@ -264,11 +262,10 @@ else:
                         df_hist["rent_display"] = df_hist["rent_native"] * rate
 
                         # Sort by month (keeping "Current" at end)
-                        non_current = df_hist[df_hist["is_current"] == False].sort_values("month_str", ascending=False)
-                        current = df_hist[df_hist["is_current"] == True]
+                        non_current = df_hist[df_hist["month_str"] != "Current"].sort_values("month_str")
+                        current = df_hist[df_hist["month_str"] == "Current"]
                         df_hist = pd.concat([non_current, current], ignore_index=True)
                         month_order = df_hist["month_str"].tolist()
-                        st.write(f"DEBUG: month_order = {month_order}")
 
                         # Create subplots for buy price and yield
                         col1, col2 = st.columns(2)
@@ -279,18 +276,31 @@ else:
                                 x="month_str", y="buy_display",
                                 markers=True,
                                 labels={"month_str": "Month", "buy_display": f"Buy price ({symbol})"},
-                                color="is_current",
-                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
-                                category_orders={"month_str": month_order},
                             )
                             fig_buy.update_traces(
+                                line=dict(color="#C4603A", width=2),
+                                marker=dict(size=6, color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
-                                marker=dict(size=8)
                             )
-                            fig_buy.update_xaxes(type="category", categoryorder="array", categoryarray=month_order)
-                            fig_buy.update_layout(showlegend=False, hovermode="x unified")
+
+                            current_idx = df_hist[df_hist["is_current"] == True].index
+                            if len(current_idx) > 0:
+                                idx = current_idx[0]
+                                fig_buy.add_scatter(
+                                    x=[df_hist.loc[idx, "month_str"]],
+                                    y=[df_hist.loc[idx, "buy_display"]],
+                                    mode="markers",
+                                    marker=dict(size=12, color="#7A8C6E", symbol="star", line=dict(color="#C4603A", width=2)),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>" + symbol + " %{y:,.0f}<extra></extra>",
+                                    showlegend=False,
+                                )
+
+                            fig_buy.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=month_order)
+                            fig_buy.update_yaxes(title_text=f"Buy price ({symbol})")
+                            fig_buy.update_layout(hovermode="x unified", showlegend=False, margin=dict(l=0, r=0, t=0, b=0))
                             st.plotly_chart(fig_buy, use_container_width=True)
-                            st.caption("Estimated buy price over time (green = current estimate)")
+                            st.caption("⭐ Green star = current estimate | Line = historical estimate")
 
                         with col2:
                             fig_yield = px.line(
@@ -298,15 +308,28 @@ else:
                                 x="month_str", y="yield",
                                 markers=True,
                                 labels={"month_str": "Month", "yield": "Gross yield (%)"},
-                                color="is_current",
-                                color_discrete_map={False: "#C4603A", True: "#7A8C6E"},
-                                category_orders={"month_str": month_order},
                             )
                             fig_yield.update_traces(
+                                line=dict(color="#C4603A", width=2),
+                                marker=dict(size=6, color="#C4603A"),
                                 hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
-                                marker=dict(size=8)
                             )
-                            fig_yield.update_xaxes(type="category", categoryorder="array", categoryarray=month_order)
-                            fig_yield.update_layout(showlegend=False, hovermode="x unified")
+
+                            current_idx = df_hist[df_hist["is_current"] == True].index
+                            if len(current_idx) > 0:
+                                idx = current_idx[0]
+                                fig_yield.add_scatter(
+                                    x=[df_hist.loc[idx, "month_str"]],
+                                    y=[df_hist.loc[idx, "yield"]],
+                                    mode="markers",
+                                    marker=dict(size=12, color="#7A8C6E", symbol="star", line=dict(color="#C4603A", width=2)),
+                                    name="Current",
+                                    hovertemplate="<b>%{x}</b><br>%{y:.1f}%<extra></extra>",
+                                    showlegend=False,
+                                )
+
+                            fig_yield.update_xaxes(title_text="Month", type="category", categoryorder="array", categoryarray=month_order)
+                            fig_yield.update_yaxes(title_text="Gross yield (%)")
+                            fig_yield.update_layout(hovermode="x unified", showlegend=False, margin=dict(l=0, r=0, t=0, b=0))
                             st.plotly_chart(fig_yield, use_container_width=True)
-                            st.caption("Estimated gross yield over time (green = current estimate)")
+                            st.caption("⭐ Green star = current estimate | Line = historical estimate")
