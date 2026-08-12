@@ -72,9 +72,9 @@ library(dplyr)
 
 # Define the query function
 query_amenity <- function(south, west, north, east, amenity_tag, amenity_value, max_retries = 3) {
-  
+
   overpass_url <- "https://overpass-api.de/api/interpreter"
-  
+
   # Build Overpass QL query
   query <- sprintf(
     '[bbox=%f,%f,%f,%f];
@@ -84,12 +84,12 @@ query_amenity <- function(south, west, north, east, amenity_tag, amenity_value, 
     amenity_tag, amenity_value,
     amenity_tag, amenity_value
   )
-  
+
   # Retry loop
   for (attempt in 1:max_retries) {
-    tryCatch({
+    result <- tryCatch({
       response <- POST(overpass_url, body = query, timeout(300))  # 5 min timeout
-      
+
       if (status_code(response) == 200) {
         data <- fromJSON(content(response, as = "text"))
         return(length(data$elements))
@@ -98,22 +98,26 @@ query_amenity <- function(south, west, north, east, amenity_tag, amenity_value, 
         wait_time <- 2 ^ attempt  # exponential backoff: 2, 4, 8 sec
         cat(paste("Rate limited. Waiting", wait_time, "seconds...\n"))
         Sys.sleep(wait_time)
+        NULL  # Continue to next retry
       } else {
         warning(paste("Overpass error:", status_code(response)))
-        return(0)
+        0
       }
     }, error = function(e) {
       if (attempt < max_retries) {
         wait_time <- 2 ^ attempt
-        cat(paste("Connection error. Retrying in", wait_time, "seconds...\n"))
+        cat(paste("Connection error (", e$message, "). Retrying in", wait_time, "seconds...\n"))
         Sys.sleep(wait_time)
+        NULL  # Continue to next retry
       } else {
-        warning(paste("Query failed after", max_retries, "attempts"))
-        return(0)
+        warning(paste("Query failed after", max_retries, "attempts:", e$message))
+        0
       }
     })
+
+    if (!is.null(result)) return(result)
   }
-  
+
   return(0)
 }
 
