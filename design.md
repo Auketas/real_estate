@@ -834,12 +834,12 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 **Execution order (strictly sequential):**
 
-1. **Phase 8a (Price calculator trends) — NEXT: Improve historical trends visualization:**
-   - [ ] **Visual improvements to trend chart:**
-     - [ ] Include current model's prediction as a distinct point on the trend line (currently missing — confusing users)
-     - [ ] Improve chart styling: clearer legends, labeled axes, better visual hierarchy
-     - [ ] Ensure current estimate is visually distinct from historical data
-   - [ ] Location: Both buy calculator (Page 3 > Algarve section) and rent calculator (Page 4)
+1. **Phase 8a (Price calculator trends) ✓ COMPLETE**
+   - [x] **Visual improvements to trend chart:**
+     - [x] Include current model's prediction as a distinct point on the trend line (currently missing — confusing users)
+     - [x] Improve chart styling: clearer legends, labeled axes, better visual hierarchy
+     - [x] Ensure current estimate is visually distinct from historical data
+   - [x] Location: Both buy calculator (Page 3 > Algarve section) and rent calculator (Page 4)
    
 2. **Phase 9 (Neighbourhood detail pages) — Build with hover redesign:**
    - [ ] URL routing via `st.query_params` (e.g. `?neighbourhood=Baixa&city=lisboa`)

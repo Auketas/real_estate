@@ -567,8 +567,7 @@ insert_ads <- function(df, con, type, city) {
 update <- function(type, city, runstats) {
   base_url <- paste0(
     "https://casa.sapo.pt/",
-    ifelse(type == "buy", "comprar", "arrendar"),
-    "/apartamentos/", city, "/?page="
+    ifelse(type == "buy", "comprar", "alugar"),"/", city, "/c/?page="
   )
 
   today         <- Sys.Date()
