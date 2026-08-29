@@ -134,12 +134,12 @@ if is_algarve:
     df_city["ppm2_display"]  = df_city["median_price_per_m2"] * rate
     df_city["price_display"] = df_city["median_price"]        * rate
 
-    fig = px.choropleth_mapbox(
+    fig = px.choropleth_map(
         df_city, geojson=geojson,
         locations="city_label", featureidkey="properties.NAME_2",
         color="price_display",
         color_continuous_scale=COLOR_SCALE,
-        mapbox_style="carto-positron",
+        map_style="carto-positron",
         zoom=cfg["zoom"], center={"lat": cfg["lat"], "lon": cfg["lon"]},
         opacity=0.75,
         hover_data={
@@ -429,12 +429,12 @@ else:
         map_center = {"lat": cfg["lat"], "lon": cfg["lon"]}
 
     # Add custom CSS to make choropleth cursor pointer
-    fig = px.choropleth_mapbox(
+    fig = px.choropleth_map(
         df_choro, geojson=geojson,
         locations="feature_name", featureidkey=cfg["featureidkey"],
         color=color_column,
         color_continuous_scale=color_scale,
-        mapbox_style="carto-positron",
+        map_style="carto-positron",
         zoom=map_zoom, center=map_center,
         opacity=0.75,
         hover_data={

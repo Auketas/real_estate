@@ -119,7 +119,7 @@ df_map["lat"]       = df_map["region"].map(lambda r: REGION_COORDS[r][0])
 df_map["lon"]       = df_map["region"].map(lambda r: REGION_COORDS[r][1])
 df_map["size_plot"] = np.sqrt(df_map["listing_count"].clip(lower=1))
 
-fig_map = px.scatter_mapbox(
+fig_map = px.scatter_map(
     df_map,
     lat="lat", lon="lon",
     color="median_ppm2",
@@ -140,7 +140,7 @@ fig_map = px.scatter_mapbox(
         "avg_time_on_market":     "Avg. days on market",
         "listing_count":          "Active listings",
     },
-    mapbox_style="carto-positron",
+    map_style="carto-positron",
     zoom=5.8,
     center={"lat": 39.4, "lon": -8.4},
 )
