@@ -48,6 +48,13 @@ This file describes what each workflow does and when it runs. All workflows use 
 - **Output:** `model_coefficients`, `model_feature_stats`, `model_metadata` (with `snapshot_date`; optionally also with `snapshot_month` if month missing)
 - **Notes:** Live models always current; used by price calculator. Deletes previous day's live model but never touches monthly archives. Dashboard always queries most recent `snapshot_date` for predictions.
 
+### 6. **osm_liveability_scraper** (`osm_liveability_scraper.yml`)
+- **What:** Computes neighbourhood liveability metrics for the Phase 9 detail pages — walkability, public transport, amenity counts, travel times, vibrancy — from OpenStreetMap Overpass data
+- **When:** Quarterly, 1st of Jan/Apr/Jul/Oct at 06:00 UTC, or manually via workflow_dispatch
+- **Process:** One combined Overpass query per neighbourhood (amenities + transit tags together, ~305 requests total for the full run) rather than one request per tag — keeps the run to ~15–30 min, well under the job's 90 min timeout, and avoids the query volume that made per-IP Overpass rate limiting a real risk. Computes `walk_score` and `transit_score` (density + percentile-rank across the dataset, no external API), plus `vibrancy_score`/`vibrancy_category`, `min_to_train_station`, `min_to_airport`.
+- **Output:** `neighbourhood_metadata` (one row per city/neighbourhood)
+- **Notes:** Fails loudly (`stop()`, non-zero exit) if any neighbourhood's Overpass query exhausts its retries, rather than writing NA/zero counts as if they were real data — rerun manually if that happens. **As of Aug 2026, the actual Neon write (`write_neighbourhood_metadata()`) is still commented out in `code/scrape/osm_scraper.R`** pending creation of the `neighbourhood_metadata` table in Neon (schema in `design.md`) — until then this workflow computes but does not persist the data. `bike_score` remains NULL (no source chosen).
+
 ---
 
 ## Data Quality & Diagnostics
@@ -197,6 +204,7 @@ These workflows were created during Phase 7b (neighbourhood matching) and typica
 | 21:00 | `Analyse Neighbourhood Coverage` | Check mapping quality |
 | Every 10 min | `keep_alive` | Keep Streamlit app responsive |
 | **1st of month, 06:00** | `monthly_aggregation` | Archive month & train models (also triggers regression_models job) |
+| **1st of Jan/Apr/Jul/Oct, 06:00** | `osm_liveability_scraper` | Refresh neighbourhood walkability/transit/amenity/vibrancy metrics |
 
 **Manual triggers (workflow_dispatch):** Any workflow can be triggered manually via GitHub Actions UI for testing or emergency re-runs.
 

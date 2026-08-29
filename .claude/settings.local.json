@@ -30,7 +30,22 @@
       "Skill(run)",
       "Bash(streamlit run *)",
       "Bash(netstat -ano)",
-      "Bash(findstr \":8501\")"
+      "Bash(findstr \":8501\")",
+      "Bash(where python *)",
+      "Bash(/c/Users/Auke/Python/Python38-32/python.exe *)",
+      "WebSearch",
+      "WebFetch(domain:www.numbeo.com)",
+      "WebFetch(domain:dados.gov.pt)",
+      "WebFetch(domain:www.ine.pt)",
+      "Bash(python3 -c ' *)",
+      "Bash(command -v python node jq py)",
+      "Bash(command -v Rscript)",
+      "WebFetch(domain:estatisticas.justica.gov.pt)",
+      "WebFetch(domain:www.pordata.pt)",
+      "WebFetch(domain:portugal.gov.pt)",
+      "WebFetch(domain:www.jn.pt)",
+      "WebFetch(domain:paginaum.pt)",
+      "WebFetch(domain:dgpj.justica.gov.pt)"
     ]
   }
 }

@@ -1,0 +1,40 @@
+name: osm_liveability_scraper
+
+env:
+    NEON_DBNAME: ${{ secrets.NEON_DBNAME }}
+    NEON_HOST: ${{ secrets.NEON_HOST }}
+    NEON_USER: ${{ secrets.NEON_USER }}
+    NEON_PASSWORD: ${{ secrets.NEON_PASSWORD }}
+
+on:
+  schedule:
+    - cron: "0 6 1 1,4,7,10 *"   # quarterly: 1st of Jan/Apr/Jul/Oct at 06:00 UTC
+  workflow_dispatch:              # allows manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # full run is ~305 Overpass requests, ~15-30 min expected; generous margin for retries/backoff
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudunits2-dev libgdal-dev libproj-dev libpq-dev libcurl4-openssl-dev libssl-dev
+
+      - name: Install R packages
+        run: |
+          install.packages(c('sf', 'dplyr', 'httr', 'jsonlite', 'DBI', 'RPostgres'), repos = 'https://cloud.r-project.org')
+        shell: Rscript {0}
+
+      - name: Run OSM liveability scraper
+        run: |
+          Rscript code/scrape/osm_scraper.R

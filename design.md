@@ -640,7 +640,29 @@ Work through these phases sequentially. Complete and verify each phase before st
 
 **DESIGN SESSION REQUIRED:** Determine the visual layout and chart arrangement for neighbourhood detail pages before implementation. Decide on: hero section layout, metric hierarchy, chart order, mobile responsiveness.
 
-**⚠️ SAFETY DATA PLANNING:** Safety is critical for expat relocation decisions but requires careful sourcing. **When starting Phase 9 implementation, schedule a dedicated brainstorm on safety data strategy** — how to source it reliably (Numbeo, crowdsourcing, official data, proxy metrics), how to present it responsibly, and how to build in-house data over time. Do NOT implement safety lightly or with unreliable sources.
+**⚠️ SAFETY DATA PLANNING — brainstorm held, direction agreed, licensing + implementation still pending (Aug 2026).** Safety is critical for expat relocation decisions but requires careful sourcing. Do NOT implement safety lightly or with unreliable sources. The dedicated brainstorm this note originally called for happened across two sessions (Aug 20 and Aug 24, 2026) — see the source list and decision below. **Nothing is implemented in code yet** — no table, no scraper, no dashboard column. Next concrete action: email PORDATA for reuse permission (see Decision below).
+
+**Sources checked (exhaustive as of Aug 2026):**
+- **Numbeo Crime Index** — checked directly: only **4 Portuguese cities have real entries — Amadora, Braga, Porto, Lisbon**. Everything else (Albufeira, Faro, Loulé, Portimão, Lagos, Lagoa, Cascais, Sintra, Setúbal, Almada, Matosinhos, Maia, Gaia) falls back to a national aggregate. Usable only as a Lisboa/Porto cross-check, not as coverage.
+- **INE's own "Base de Dados" portal (ine.pt)** — checked directly: crime-rate datasets there (`Taxa de criminalidade`, NUTS-2013/2024 variants) are published at **NUTS II level only**. INE's own press communications cite concelho-level rankings (see variance data below), but these trace back to the same underlying DGPJ dataset PORDATA repackages, not a separate, more-open INE product — checked and confirmed, no independent município-level INE release found.
+- **`dados.gov.pt` open DGPJ datasets** (CC BY 4.0, genuinely free) — checked directly ("Crimes registados pelas autoridades policiais," "Crimes registados (N.º) pelas autoridades policiais," "Taxa de criminalidade"): all cap at **NUTS region or comarca (judicial district)** level. Genuinely open, but too coarse.
+- **PORDATA — "Crimes registados pelas polícias por mil habitantes"** ([link](https://www.pordata.pt/municipios/crimes+registados+pelas+policias+por+mil+habitantes-995)): checked directly — **município/concelho level**, all 308 municipalities, sourced from DGPJ/MJ + INE, years 2001–2025, Excel-exportable, matches this project's `city` grouping exactly. **Remains the only ready-to-use, structured, município-level source found, after re-checking every other lead below.** Blocker: page footer reads `© 2024 Fundação Francisco Manuel dos Santos. Todos os direitos reservados` — all rights reserved, no CC/reuse language. Redistributing inside a €19/month paid product isn't clearly covered by that. **Next action: email `pordata@ffms.pt` requesting reuse permission** — not yet sent.
+- **DGPJ's own SIEJ Data Library** (`estatisticas.justica.gov.pt/DataLibrary`) — checked directly, including its "Crimes recorded by police forces" report: the interactive filter only goes to **NUT 1** (3 values: Continente/Açores/Madeira), and **the Open Data export for that same report has no geography column at all** — worse than hoped, not an alternative to PORDATA. Dead end.
+- **RASI (Relatório Anual de Segurança Interna)** — município-level data confirmed to genuinely exist (news coverage citing RASI directly names concelho rankings, e.g. Albufeira). But: (a) license no better than PORDATA — `ssi.gov.pt` shows only a generic `© 2026 Sistema de Segurança Interna` notice, no CC/reuse statement, arguably *less* to work with than PORDATA's "public service" self-framing; (b) it's a 340+ page PDF with no structured export, requiring manual table extraction vs. PORDATA's clean Excel download. Strictly worse than PORDATA on both license clarity and effort. Dead end.
+- **Lisboa's municipal open data portal** (`dados.cm-lisboa.pt`, "Segurança e Socorro" category, 11 datasets) — checked directly: all facility locations (fire stations, police stations, CCTV in Bairro Alto only, civil defence barracks), no incident/crime records. One tangential find, **not pursued**: "Índice de Atropelamentos em Lisboa," a genuinely sub-city-granular pedestrian-accident raster (TIFF) — but it's traffic safety not crime, based on 2013–2015 data, and Lisboa-only. Not a real candidate.
+- **Porto's municipal open data portal** (`opendata.porto.digital`) — checked directly: searched "criminalidade" (0 results) and "segurança" (2 results, both just police/fire station locations). Same story as Lisboa.
+- **PSP/GNR open data** — no evidence of geocoded incident-level data at any granularity; Portugal doesn't have the open-crime-portal tradition the UK/US do. Confirmed dead end (checked both nationally and at the Lisboa/Porto municipal level).
+- **INE Census 2021 socioeconomic data** (unemployment, overcrowding, education — CC BY 4.0, genuinely freguesia-level via `dados.gov.pt`) — real, open, and neighbourhood-granular, but **deliberately not pursued as a safety proxy**: using socioeconomic indicators as a stand-in for "safety" risks reading as redlining, especially for a product explicitly helping people choose where to live. Noted here so it isn't independently rediscovered and implemented without this caveat.
+- **Night-time lighting** — two different things worth distinguishing: (a) OSM `lit=yes` tags on streets, same Overpass pipeline already in use, genuinely neighbourhood-granular, no ethical baggage; (b) satellite nighttime-lights imagery (VIIRS), free and global but ~500m/pixel — bigger than several Lisboa parishes (e.g. Castelo at 0.035 km²), unusable at parish granularity. (a) is the one worth building, as a secondary signal layered on top of the município-level crime rate, not a replacement for it.
+- **Police presence (`amenity=police` in OSM)** — considered and rejected. Reverse-causality problem: presence can mean "well protected" or "deployed here because it's a hotspot," no way to disambiguate. Not a usable safety proxy.
+- **Crowdsourced ratings** — building an in-house subscriber survey over time remains the long-term plan; this is the only path to genuine neighbourhood-level safety data with no licensing fight and arguably more relevant signal (perceived safety drives buying decisions more than raw stats).
+
+**Decision (Aug 2026): proceed at município level, staged.**
+1. **Ship the real number first, at município level, once PORDATA licensing is resolved.** Display as a citywide stat on the neighbourhood page, explicitly labelled "citywide, not neighbourhood-specific." Município-level is not worthless even though the rest of the platform lives at neighbourhood level — most relocating expats' actual mental question is "is this city safe?", not "is this parish safer than that one." Real variance exists and is decision-relevant: **Albufeira ~78–86 crimes/1,000 residents; Porto 64.9‰ — the 3rd-highest concelho nationally; Loulé 60.8‰** — vs. single digits for the safest concelhos. Two covered cities (Albufeira, Porto) rank in the national top 3, so this isn't noise.
+2. **Framing: compare to the Portugal national average, not to other cities or to the user's home country.** City-to-city ranking within Portugal is statistically sound (same DGPJ methodology throughout) but a home-country comparison isn't — different countries define/count "recorded crime" differently, and comparing across those systems would look scientific while actually misleading users. Display as e.g. "X.X per 1,000 residents — N.Nx the national average," matching how Portuguese press already frames this same data.
+3. **Layer OSM `lit=yes` street lighting density as a secondary, modestly-labelled signal** (not marketed as "safety score" itself) once amenity counts are already being collected — gives some neighbourhood-level texture without overclaiming.
+4. **Crowdsourced ratings remain the long-term real fix** for genuine neighbourhood granularity — worth prioritizing once there's a subscriber base to draw on.
+5. **Explicitly not pursuing:** Census socioeconomic proxies as a safety stand-in (ethical risk, see above).
 
 #### Neighbourhood detail page content
 
@@ -656,7 +678,7 @@ Work through these phases sequentially. Complete and verify each phase before st
 - **Amenity counts** — schools, grocery stores, restaurants, parks within 1–2km (from OpenStreetMap)
 - **Travel times** — minutes to nearest train station and airport (calculated from fixed points)
 - **Vibrancy Index** — count of bars, nightlife venues, and tourist attractions (from OSM); indicates noise/activity level (low = quiet residential, high = lively/touristy)
-- **Safety indicator** — TBD; initial source Numbeo if available, flagged as user-reported; plan crowdsourced rating system for future
+- **Safety indicator** — decided but not yet implemented (see SAFETY DATA PLANNING above): município-level crime rate from PORDATA (pending reuse permission), shown as a citywide stat vs. the national average, plus OSM street lighting as a secondary neighbourhood-level signal; crowdsourced ratings are the long-term path to real neighbourhood granularity
 
 #### Implementation
 
@@ -880,29 +902,44 @@ Neighbourhood detail pages require four liveability data sources. These are fetc
 
 ### Data Sources & Collection Strategy
 
-#### 1. Walk Score API
-**Source:** walkScore.com API  
-**Frequency:** Quarterly (scores change slowly)  
-**Rate limit:** 10k requests/month (free tier)
+#### 1. Walkability score
+**⚠️ UPDATE (Aug 2026): Walk Score API is NOT available on a usable free tier** — the 10k requests/month free tier assumed below does not actually exist for this use case. Source needs to change before this can be built. No option has been chosen yet — candidates below, pending a decision.
 
-**Implementation:**
-```r
-# Pseudocode
-for each neighbourhood:
-  lat <- neighbourhood_centroid$lat
-  lon <- neighbourhood_centroid$lon
-  response <- GET(paste0("https://api.walkscore.com/score?",
-    "lat=", lat, "&lon=", lon, "&format=json&apikey=", API_KEY))
-  walk_score <- response$walk_score
-  transit_score <- response$transit_score
-  bike_score <- response$bike_score
-  # Insert into neighbourhood_metadata
-```
+**Candidate approaches:**
+
+a) **DIY OSM-based score (recommended for MVP)** — reuse the amenity counts already being scraped (schools, groceries, restaurants, parks, etc.) and apply a distance-decay weighted sum per category, similar to Walk Score's own published methodology (nearby amenities count more than distant ones, with a per-category cap so one dense category can't dominate). Fully free, no new API/key to manage, and consistent with the rest of this pipeline already being OSM-based.
+
+b) **Street/intersection density as a connectivity proxy** — pull `highway=*` ways within each neighbourhood polygon and count intersections (nodes shared by ≥3 ways). Denser street grids correlate with walkability and can be combined with (a) as a secondary signal.
+
+c) **OpenRouteService isochrones** — free tier (~2,000 requests/day), open-source. Computes actual walking-time isochrones (5/10/15 min) along the real street network from each centroid, then counts amenities reachable within each band. More accurate than straight-line radius counting in (a), at the cost of one more external dependency.
+
+d) **Mapbox Isochrone API** — free tier (~100k requests/month), same idea as (c). Check ToS before redistributing any derived score publicly.
+
+**⚠️ UPDATE (Aug 2026): (a) implemented.** `walk_score` is now computed in `code/scrape/osm_scraper.R` from the amenity counts already being scraped — see the "Walkability score" block in the script. Method: amenity **density** (count / `area_km2`, not raw count — same reasoning as the Vibrancy Index below, since Algarve entries are concelho-level and raw counts aren't comparable to Lisboa/Porto's parish-level entries) per category, percentile-ranked across the full dataset, combined with weights mirroring Walk Score's own category emphasis:
+
+| Category | Weight |
+|---|---|
+| `grocery_stores_count` | 0.25 |
+| `restaurants_count` | 0.20 |
+| `schools_count` | 0.15 |
+| `parks_count` | 0.15 |
+| `bars_count` | 0.15 |
+| `tourist_attractions_count` | 0.10 |
+
+`walk_score = round(100 * Σ(weight × percentile_rank(density)))`
+
+**Known limitation:** this only approximates "amenity mix." It doesn't do per-amenity distance-decay from a specific point (Walk Score gives full credit within ~5 min walk, decaying to zero by ~30 min) or account for street/intersection connectivity — both of which the real Walk Score methodology uses. Upgrade path if this proves too crude: the Overpass responses already used for amenity counts include individual coordinates (or a `center` for ways/relations) that are currently discarded after counting — keeping them would allow computing actual Haversine distance from each neighbourhood centroid to each amenity and applying a decay curve, without adding a new data source. `bike_score` remains NULL — no source chosen yet; not blocking since `walk_score` and `transit_score` are the primary signals for the neighbourhood page.
+
+**⚠️ UPDATE (Aug 2026): `transit_score` implemented**, same density + percentile-rank pattern as `walk_score`. Two Overpass categories, queried in the same combined request as the amenity counts (see "OSM Amenities" below): `rail_stops_count` (`railway=station`, `railway=halt`, `railway=tram_stop`, `railway=subway_entrance` — train, metro, and tram, all higher-capacity fixed-guideway modes) and `bus_stops_count` (`highway=bus_stop`). Rail is weighted above bus (0.65 / 0.35), mirroring how Walk Score's own Transit Score weights by mode/frequency:
+
+`transit_score = round(100 * (0.65 × percentile_rank(rail_density) + 0.35 × percentile_rank(bus_density)))`
 
 **Database columns:**
-- `walk_score` INTEGER (0–100)
-- `transit_score` INTEGER (0–100)
-- `bike_score` INTEGER (0–100)
+- `walk_score` INTEGER (0–100) — populated
+- `transit_score` INTEGER (0–100) — populated
+- `bike_score` INTEGER (0–100) — NULL, no source yet
+- `rail_stops_count` INTEGER — populated, feeds `transit_score`
+- `bus_stops_count` INTEGER — populated, feeds `transit_score`
 
 ---
 
@@ -911,15 +948,17 @@ for each neighbourhood:
 **Frequency:** Quarterly  
 **Rate limit:** Soft limits; space requests ~1–2 sec apart
 
-**Implementation:**
-Loop through each neighbourhood's GeoJSON polygon. For each amenity type, construct an Overpass QL query:
+**⚠️ UPDATE (Aug 2026): consolidated into one request per neighbourhood.** The original per-(neighbourhood, tag) approach below issued ~14 separate Overpass requests per neighbourhood — ~4,200+ total across ~300 neighbourhoods. Overpass has no API key; it rate-limits purely by source IP (a small number of concurrent "slots" per IP), and that volume risked both a 6h GitHub Actions job timeout and tripping that per-IP limit — a real concern on GitHub-hosted runners specifically, since they draw from a large, shared, non-dedicated IP pool rather than a single IP with its own headroom. `query_neighbourhood_osm()` in `code/scrape/osm_scraper.R` now unions every amenity *and* transit tag/value pair (see Walkability score section above for `transit_score`) into a single combined query per neighbourhood, classifying each returned element locally by its tags. This cuts the amenity+transit query volume to ~300 total requests (one per neighbourhood), plus the ~5 per-city station queries used for travel time below.
+
+**Implementation (combined query, one per neighbourhood):**
 
 ```
 [bbox=south,west,north,east];
 (
-  node["amenity"="school"];
-  way["amenity"="school"];
-  relation["amenity"="school"];
+  node["amenity"="school"];way["amenity"="school"];relation["amenity"="school"];
+  node["amenity"="restaurant"];way["amenity"="restaurant"];relation["amenity"="restaurant"];
+  ... (one node/way/relation triplet per tag/value pair below) ...
+  node["highway"="bus_stop"];way["highway"="bus_stop"];relation["highway"="bus_stop"];
 );
 out center;
 ```
@@ -934,7 +973,10 @@ out center;
 | Bars/Nightlife | `"amenity"="bar"` OR `"amenity"="nightclub"` OR `"amenity"="pub"` | Node/Way |
 | Parks | `"leisure"="park"` OR `"leisure"="garden"` OR `"leisure"="playground"` | Way/Relation |
 | Tourist attractions | `"tourism"="attraction"` OR `"tourism"="museum"` | Node/Way |
-| Train stations | `"railway"="station"` | Node/Way |
+| Rail stops (transit_score) | `"railway"="station"` OR `"railway"="halt"` OR `"railway"="tram_stop"` OR `"railway"="subway_entrance"` | Node/Way |
+| Bus stops (transit_score) | `"highway"="bus_stop"` | Node |
+
+**Note:** `railway=station` is queried twice for two different purposes — once here (per-neighbourhood count, feeds `transit_score`) and once per-city in `query_stations()` below (finds each neighbourhood's *nearest* station for the travel-time calculation, over a wider city-level bbox). These aren't redundant: the per-city query needs to look beyond a single neighbourhood's own bbox to find its true nearest station.
 
 **Database columns:**
 - `schools_count` INTEGER
@@ -943,55 +985,44 @@ out center;
 - `bars_count` INTEGER
 - `parks_count` INTEGER
 - `tourist_attractions_count` INTEGER
+- `rail_stops_count` INTEGER
+- `bus_stops_count` INTEGER
 
 **R implementation notes:**
-- Use `httr::GET()` with Overpass API endpoint: `https://overpass-api.de/api/interpreter`
-- Pass Overpass QL query in POST body
-- Parse JSON response, count results
+- Use `httr::POST()` with Overpass API endpoint: `https://overpass-api.de/api/interpreter`
+- Pass the combined Overpass QL query (all tag/value pairs unioned) in the POST body
+- Parse JSON response with `simplifyVector = FALSE`; classify each element by its tags locally to bucket into the right `*_count` column
 - Handle timeouts gracefully (Overpass server sometimes slow)
-- Space requests ~1.5 sec apart to respect rate limits
+- Space requests ~1.5 sec apart between neighbourhoods to respect rate limits
 
 ---
 
 #### 3. Travel Times (Pre-computed, One-time)
 **Source:** Haversine distance calculation  
-**Frequency:** Never (fixed infrastructure)
+**Frequency:** Never (fixed infrastructure), except the train station query which re-runs whenever neighbourhoods are added
 
-**Fixed landmarks:**
+**⚠️ UPDATE (Aug 2026): train station changed from one fixed station per city to nearest-station-by-query.** A single fixed station per city was a poor proxy — e.g. in Porto, Campanha is much better connected for many neighbourhoods than São Bento. Train stations are now found via an Overpass `railway=station` query per city (all node/way results within that city's neighbourhood bounding box), and each neighbourhood uses the minimum Haversine distance to any of them. Airports remain a single fixed landmark per region, since each region is genuinely served by one main airport.
 
-| City | Train Station | Coordinates | Airport | Coordinates |
-|------|---------------|-------------|---------|------------|
-| Lisboa | Santa Apolónia | 38.7097, -9.1366 | Humberto Delgado Lisbon | 38.6749, -9.1350 |
-| Porto | São Bento | 41.1633, -8.6294 | Francisco de Sá Carneiro | 41.2411, -8.6761 |
-| Algarve | Faro | 37.0144, -7.9754 | Faro Airport | 37.0144, -7.9754 |
+**⚠️ Unit bug fixed:** the original formula below divided km by "1.4 km/min" — but 1.4 is average walking speed in **m/s** (~5 km/h), not km/min. Dividing by 1.4 as if it were km/min understated walking time by ~84x. Corrected: 5 km/h walking → 12 min/km; 50 km/h driving → 1.2 min/km.
+
+**Fixed landmarks (airport only):**
+
+| Region | Airport | Coordinates |
+|--------|---------|-------------|
+| Lisboa (incl. Setúbal, Almada) | Humberto Delgado Lisbon | 38.6749, -9.1350 |
+| Porto | Francisco de Sá Carneiro | 41.2411, -8.6761 |
+| Algarve | Faro Airport | 37.0144, -7.9754 |
 
 **Calculation:**
 - Haversine distance (lat/lon) → km
-- Walking: km ÷ 1.4 km/min = minutes (avg walking speed ~5 km/h)
-- Driving: km ÷ 50 km/h = minutes (urban average)
+- Walking (to nearest station): km × 12 = minutes (5 km/h avg walking speed)
+- Driving (to airport): km × 1.2 = minutes (50 km/h urban average)
 
 **Database columns:**
-- `min_to_train_station` INTEGER (walking minutes, or NULL if >60 min)
+- `min_to_train_station` INTEGER (walking minutes to nearest station, or NULL if >60 min)
 - `min_to_airport` INTEGER (driving minutes)
 
-**R implementation:**
-```r
-# Haversine function
-haversine <- function(lat1, lon1, lat2, lon2) {
-  R <- 6371  # Earth radius in km
-  dLat <- (lat2 - lat1) * pi / 180
-  dLon <- (lon2 - lon1) * pi / 180
-  a <- sin(dLat/2)^2 + cos(lat1*pi/180) * cos(lat2*pi/180) * sin(dLon/2)^2
-  c <- 2 * atan2(sqrt(a), sqrt(1-a))
-  return(R * c)
-}
-
-# For each neighbourhood:
-km_to_train <- haversine(nbhd_lat, nbhd_lon, train_lat, train_lon)
-min_to_train <- km_to_train / 1.4  # walking
-km_to_airport <- haversine(nbhd_lat, nbhd_lon, airport_lat, airport_lon)
-min_to_airport <- km_to_airport / 50  # driving
-```
+**R implementation:** see `code/scrape/osm_scraper.R` — `query_stations()` fetches stations per city via Overpass, `haversine_km()` computes distance, and the per-neighbourhood loop takes the minimum. `neighbourhood_metadata` now exists in Neon (Aug 2026) and the script's write call is active — this runs for real on the next scheduled or manual `osm_liveability_scraper` workflow run.
 
 ---
 
@@ -999,18 +1030,21 @@ min_to_airport <- km_to_airport / 50  # driving
 **Source:** Overpass API (bars + tourist attractions)  
 **Frequency:** Quarterly
 
+**⚠️ UPDATE (Aug 2026): area-normalised, with data-driven thresholds.** Neighbourhood polygon sizes in this dataset span ~21,600x — from 0.035 km² (a small Lisboa historic parish, e.g. Castelo) to 765 km² (Loulé, which falls back to concelho/NAME_2 level in Algarve since it has no finer GADM boundary). Fixed absolute count thresholds (5/20) would be meaningless across that range — a couple of bars in a 0.035 km² parish would blow past "high" while the same count spread across a 765 km² concelho would barely register. Switched to density (count per km²) with tertile cutoffs computed from the actual dataset, so the buckets stay meaningful as more neighbourhoods are added.
+
 **Calculation:**
 ```
-vibrancy_score = bars_count + (tourist_attractions_count / 2)
+vibrancy_score = (bars_count + tourist_attractions_count / 2) / area_km2
 
 vibrancy_category:
-  if vibrancy_score < 5: "low" (quiet residential)
-  if 5 ≤ vibrancy_score ≤ 20: "medium" (mixed)
-  if vibrancy_score > 20: "high" (lively/touristy)
+  bottom third of vibrancy_score across all neighbourhoods -> "low"
+  middle third -> "medium"
+  top third -> "high"
 ```
 
 **Database columns:**
-- `vibrancy_score` NUMERIC (derived, not stored)
+- `area_km2` NUMERIC — polygon area, needed for the density calculation
+- `vibrancy_score` NUMERIC (stored, not just derived — tertile cutoffs are relative to the full dataset, so the score needs to persist alongside the category)
 - `vibrancy_category` VARCHAR(20) — "low", "medium", "high"
 
 ---
@@ -1022,7 +1056,8 @@ CREATE TABLE neighbourhood_metadata (
     id SERIAL PRIMARY KEY,
     city VARCHAR(100),
     neighbourhood VARCHAR(200),
-    
+    area_km2 NUMERIC,              -- polygon area; needed to density-normalise vibrancy (and any future proxy)
+
     -- Walk Score
     walk_score INTEGER,
     transit_score INTEGER,
@@ -1035,12 +1070,17 @@ CREATE TABLE neighbourhood_metadata (
     bars_count INTEGER,
     parks_count INTEGER,
     tourist_attractions_count INTEGER,
+
+    -- Public transport (feeds transit_score)
+    rail_stops_count INTEGER,      -- train halts/stations, metro, tram
+    bus_stops_count INTEGER,
     
     -- Travel times
     min_to_train_station INTEGER,
     min_to_airport INTEGER,
     
-    -- Vibrancy
+    -- Vibrancy (now density-normalised — see note under Vibrancy Index below)
+    vibrancy_score NUMERIC,        -- (bars + attractions/2) per km2; stored, not just derived, since tertile cutoffs are computed relative to the full dataset
     vibrancy_category VARCHAR(20),
     
     -- Metadata
@@ -1081,10 +1121,10 @@ CREATE TABLE neighbourhood_metadata (
 
 ### Execution Notes
 
-- **No GitHub Actions:** These are one-time or quarterly, not daily. Run manually via `Rscript` when updates needed.
-- **No authentication:** Walk Score requires API key (free tier). Overpass is fully free.
-- **Caching:** Walk Score results don't change often; cache aggressively. Requery only quarterly or when adding new neighbourhoods.
-- **Fallbacks:** If Walk Score API is down, mark record as "pending_walk_score". OSM queries timing out? Log and retry later. Don't block on single failures.
+- **⚠️ UPDATE (Aug 2026): now runs via GitHub Actions.** Originally planned as manual-only, since the old per-tag query approach (~4,200+ requests) risked both GitHub's 6h job timeout and Overpass's per-IP rate limiting on GitHub-hosted runners' shared IP pool. With the query consolidation above (~305 requests, ~15–30 min total run), that risk is low enough at quarterly cadence to automate. `.github/workflows/osm_liveability_scraper.yml` runs on the 1st of Jan/Apr/Jul/Oct at 06:00 UTC, plus `workflow_dispatch` for manual runs. It fails loudly (non-zero exit) if any neighbourhood's Overpass query exhausts its retries, rather than silently persisting NA/zero counts.
+- **No authentication:** Walk Score's API isn't used (see Walkability score section — DIY OSM-density approach instead). Overpass is fully free, no auth.
+- **Caching:** `walk_score`/`transit_score` don't change often; the quarterly cadence above is deliberately infrequent.
+- **Fallbacks:** OSM queries that exhaust retries return `NA` for that neighbourhood's counts (not 0, and not silently substituted) — the script then hard-stops before writing anything to Neon, so a bad run surfaces as a failed GitHub Actions job rather than corrupting the scores.
 - **Data quality:** Overpass data is crowdsourced and patchy in some regions. Flag neighbourhoods with suspiciously low counts (e.g. 0 restaurants).
 
 ---
